@@ -1,0 +1,2 @@
+export { ConsentGrantsTable } from "./components/ConsentGrantsTable";
+export { RevokeConsentDialog } from "./components/RevokeConsentDialog";

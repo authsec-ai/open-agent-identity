@@ -1,0 +1,112 @@
+/**
+ * `ApplicationLayout` — the chrome that wraps every Application detail
+ * tab. Renders ApplicationHeader → ReadinessRibbon → DetailTabs → Outlet.
+ *
+ * The chrome mounts ONCE per application; tab navigation only swaps the
+ * `<Outlet>` so we never re-fetch the application or refit the header.
+ *
+ * The fetched `application` and computed `readiness` are forwarded to
+ * the active tab through React Router's outlet context, so each tab
+ * page can read them with `useApplicationContext()`.
+ */
+
+import { Outlet, useParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+import { useGetApplicationQuery } from "@/app/api/applicationsApi";
+import { useListAccessRequestsQuery } from "@/app/api/agentIdentityApi";
+import { useListWorkspaceClientsQuery } from "@/app/api/mcpClientsApi";
+import { Card } from "@/components/ui/card";
+import { NotFoundState } from "@/components/shared/NotFoundState";
+import { isNotFoundError } from "@/lib/error-utils";
+
+import { ApplicationDetailTabs } from "./components/ApplicationDetailTabs";
+import { ApplicationHeader } from "./components/ApplicationHeader";
+import { consolePage } from "./components/ApplicationConsole";
+import { computeReadiness } from "./lib/computeReadiness";
+import type { ApplicationOutletContext } from "./useApplicationContext";
+
+export default function ApplicationLayout() {
+  const { id } = useParams<{ id: string }>();
+  const { data: application, isLoading, error } = useGetApplicationQuery(id ?? "", {
+    skip: !id,
+  });
+  // Lightweight pending count for the Requests tab badge — skipped until app loads.
+  const { data: requestsData } = useListAccessRequestsQuery(application?.id ?? "", {
+    skip: !application?.id,
+  });
+  const pendingRequestCount = (requestsData?.items ?? []).filter(
+    (r) => r.status === "pending",
+  ).length;
+  const { data: clientsData } = useListWorkspaceClientsQuery(
+    application?.id ? { resourceServerId: application.id } : undefined,
+    { skip: !application?.id },
+  );
+  const pendingClientCount = (clientsData ?? []).filter(
+    (c) => c.status === "pending_approval",
+  ).length;
+
+  if (!id) {
+    return (
+      <div className="p-6">
+        <Card className="p-6 text-sm text-muted-foreground">
+          Missing application ID.
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center p-6 text-sm text-muted-foreground">
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        Loading application…
+      </div>
+    );
+  }
+
+  if (isNotFoundError(error)) {
+    return (
+      <div className="p-6">
+        <Card>
+          <NotFoundState subject="application" backTo="/applications" backLabel="Back to applications" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !application) {
+    return (
+      <div className="p-6">
+        <Card className="p-6 text-sm text-[var(--color-danger)]">
+          Couldn't load this application. Try again in a moment.
+        </Card>
+      </div>
+    );
+  }
+
+  const readiness = computeReadiness(application);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className={consolePage}>
+        <div data-cr>
+          <ApplicationHeader application={application} readiness={readiness} />
+          <div className="tabbar-wrap">
+            <ApplicationDetailTabs
+              applicationId={application.id}
+              readiness={readiness}
+              pendingRequestCount={pendingRequestCount}
+              pendingClientCount={pendingClientCount}
+            />
+          </div>
+        </div>
+        <div style={{ marginTop: "var(--space-7)" }}>
+          <Outlet
+            context={{ application, readiness } satisfies ApplicationOutletContext}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

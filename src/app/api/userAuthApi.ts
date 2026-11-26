@@ -1,0 +1,52 @@
+/**
+ * User Authentication API - Direct email/password login only
+ * Clean separation from OAuth and WebAuthn flows
+ */
+
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { withUnauthorizedHandler } from "../../auth/unauthorized";
+import { withLoginTicket } from "../../auth/loginTicket";
+import config from '../../config';
+
+export interface CustomLoginRequest {
+  // workspace_id scopes the user lookup. client_id is kept optional for
+  // backward compat but is no longer used as the workspace identifier.
+  workspace_id: string;
+  client_id?: string;
+  email: string;
+  password: string;
+  workspace_domain?: string;
+}
+
+export interface CustomLoginResponse {
+  workspace_id: string;
+  email: string;
+  first_login: boolean;
+  otp_required: boolean;
+  mfa_required: boolean;
+  token?: string;
+}
+
+// RTK Query API for direct user authentication
+export const userAuthApi = createApi({
+  reducerPath: 'userAuthApi',
+  baseQuery: withLoginTicket(withUnauthorizedHandler(fetchBaseQuery({
+    baseUrl: `${config.VITE_API_URL}`,
+  }))),
+  tagTypes: ['UserAuth'],
+  endpoints: (builder) => ({
+    // Custom login for OIDC flow
+    customLogin: builder.mutation<CustomLoginResponse, CustomLoginRequest>({
+      query: (loginData) => ({
+        url: '/authsec/uflow/user/login',
+        method: 'POST',
+        body: loginData,
+      }),
+    }),
+
+  }),
+});
+
+export const {
+  useCustomLoginMutation,
+} = userAuthApi;

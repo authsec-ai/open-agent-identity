@@ -1,0 +1,338 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
+import type { SerializedError } from "@reduxjs/toolkit";
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TenantDomainSelectionModal } from "../components/TenantDomainSelectionModal";
+import {
+  useExchangeAdminOIDCCodeMutation,
+  type AdminOIDCExchangeErrorResponse,
+  type AdminOIDCExchangeSuccessResponse,
+} from "@/app/api/oidcApi";
+import {
+  resetAdminWebAuthnState,
+  setAuthenticationError,
+  setCurrentStep,
+  setLoginData,
+} from "../slices/adminWebAuthnSlice";
+import { toast } from "react-hot-toast";
+import { encodeHandoff } from "@/utils/handoff";
+import { AuthSplitFrame } from "../components/AuthSplitFrame";
+import { AuthValuePanel } from "../components/AuthValuePanel";
+import { AuthActionPanel } from "../components/AuthActionPanel";
+import { AuthStepHeader } from "../components/AuthStepHeader";
+
+type ProviderData = NonNullable<AdminOIDCExchangeErrorResponse["provider_data"]>;
+
+export const AdminOIDCCallbackPage: React.FC = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [exchangeCode] = useExchangeAdminOIDCCodeMutation();
+
+  const [status, setStatus] = useState<"processing" | "needs_domain" | "error">("processing");
+  const [statusMessage, setStatusMessage] = useState("Completing sign-in with your provider...");
+  const [providerData, setProviderData] = useState<ProviderData | null>(null);
+  const [showDomainModal, setShowDomainModal] = useState(false);
+
+  const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const code = urlParams.get("code") || "";
+  const state = urlParams.get("state") || "";
+  const errorParam = urlParams.get("error");
+  const errorDescription = urlParams.get("error_description");
+
+  useEffect(() => {
+    // Clear transient OAuth hint keys once callback processing begins.
+    sessionStorage.removeItem("uflow_oauth_type");
+    sessionStorage.removeItem("uflow_oauth_provider");
+    sessionStorage.removeItem("uflow_oauth_state");
+
+    // Provider redirected with an explicit error
+    if (errorParam) {
+      setStatus("error");
+      setStatusMessage(errorDescription || "Authentication was cancelled or failed.");
+      return;
+    }
+
+    if (!code || !state) {
+      // Backward compatibility for legacy callback payloads delivered as query params.
+      const legacyEmail = urlParams.get("email") || "";
+      const legacyName = urlParams.get("name") || "";
+      const legacyPicture = urlParams.get("picture") || "";
+      const legacyProvider = urlParams.get("provider") || "";
+      const legacyProviderUserId = urlParams.get("provider_user_id") || "";
+      const legacyTenantId = urlParams.get("workspace_id") || "";
+      const legacyTenantDomain = urlParams.get("workspace_domain") || "";
+      const legacyFirstLogin = urlParams.get("first_login") === "true";
+      const legacyNeedsDomain = urlParams.get("needs_domain") === "true";
+      const legacySuccess = urlParams.get("success") === "true";
+      const legacyMessage = urlParams.get("message");
+
+      if (
+        legacyNeedsDomain &&
+        legacyEmail &&
+        legacyName &&
+        legacyProvider &&
+        legacyProviderUserId
+      ) {
+        setProviderData({
+          email: legacyEmail,
+          name: legacyName,
+          picture: legacyPicture,
+          provider: legacyProvider,
+          provider_user_id: legacyProviderUserId,
+        });
+        setStatus("needs_domain");
+        setStatusMessage(legacyMessage || "Create your workspace to finish signing in.");
+        setShowDomainModal(true);
+        return;
+      }
+
+      if (legacySuccess && legacyEmail) {
+        if (!legacyTenantId) {
+          setStatus("error");
+          setStatusMessage("Callback is missing tenant information. Please try signing in again.");
+          return;
+        }
+
+        handleExistingUser({
+          workspace_id: legacyTenantId,
+          email: legacyEmail,
+          first_login: legacyFirstLogin,
+          otp_required: false,
+          mfa_required: true,
+          workspace_domain: legacyTenantDomain || undefined,
+          client_id: urlParams.get("client_id") || undefined,
+        });
+        return;
+      }
+
+      setStatus("error");
+      setStatusMessage("Missing authorization parameters (code/state).");
+      return;
+    }
+
+    const runExchange = async () => {
+      try {
+        const response = await exchangeCode({ code, state }).unwrap();
+
+        // hydra_login flow: backend accepted Hydra directly and returned a
+        // redirect URL. Navigate the browser there — same as email login's
+        // complete-local response handler.
+        if (response.redirect_to) {
+          setStatusMessage("Sign-in complete. Redirecting...");
+          window.location.href = response.redirect_to;
+          return;
+        }
+
+        // login/discover flow: backend returned a session token + user info.
+        // workspace_id and email are always present in this path.
+        if (!response.workspace_id || !response.email) {
+          setStatus("error");
+          setStatusMessage("Sign-in response missing user information. Please try again.");
+          return;
+        }
+        handleExistingUser({
+          workspace_id: response.workspace_id,
+          email: response.email,
+          first_login: response.first_login ?? false,
+          otp_required: response.otp_required ?? false,
+          mfa_required: response.mfa_required ?? false,
+          workspace_domain: response.workspace_domain,
+          client_id: response.client_id,
+        });
+      } catch (err) {
+        handleExchangeError(err as FetchBaseQueryError | SerializedError);
+      }
+    };
+
+    void runExchange();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the code exchange must run once per callback; the handlers are recreated every render
+  }, [code, state, errorParam, errorDescription, exchangeCode]);
+
+  const handleExistingUser = (data: Required<Pick<AdminOIDCExchangeSuccessResponse, "workspace_id" | "email" | "first_login">> & AdminOIDCExchangeSuccessResponse) => {
+    const tenantDomain = data.workspace_domain || "";
+    const currentHost = window.location.hostname;
+    const shouldRedirect =
+      tenantDomain &&
+      tenantDomain !== currentHost &&
+      !currentHost.includes("localhost") &&
+      !currentHost.includes("127.0.0.1");
+
+    if (shouldRedirect) {
+      const handoffToken = encodeHandoff({
+        email: data.email,
+        workspace_domain: tenantDomain,
+        workspace_id: data.workspace_id,
+        first_login: data.first_login,
+        target: "webauthn",
+      });
+      const url = `${window.location.protocol}//${tenantDomain}/admin/webauthn?handoff=${handoffToken}`;
+      toast.success("Redirecting to your workspace...");
+      window.location.href = url;
+      return;
+    }
+
+    dispatch(resetAdminWebAuthnState());
+    dispatch(setAuthenticationError(null));
+    dispatch(
+      setLoginData({
+        workspaceId: data.workspace_id,
+        email: data.email,
+        isFirstLogin: data.first_login,
+      })
+    );
+    // Router will advance once email + workspaceId are present
+    dispatch(setCurrentStep("login"));
+
+    toast.success("Signed in with provider. Complete security verification.");
+    setStatus("processing");
+    setStatusMessage("Redirecting to security verification...");
+
+    const params = new URLSearchParams({
+      email: data.email,
+      workspace_id: data.workspace_id,
+      first_login: String(data.first_login),
+    });
+    navigate(`/admin/webauthn?${params.toString()}`, { replace: true });
+  };
+
+  const handleExchangeError = (error: FetchBaseQueryError | SerializedError) => {
+    const fetchError = error as FetchBaseQueryError;
+    const data = (fetchError?.data ?? null) as AdminOIDCExchangeErrorResponse | null;
+
+    if (fetchError?.status === 404 && data?.needs_domain && data.provider_data) {
+      setProviderData(data.provider_data);
+      setStatus("needs_domain");
+      setStatusMessage(data.message || "Create your workspace to finish signing in.");
+      setShowDomainModal(true);
+      return;
+    }
+
+    const message =
+      (data?.message as string | undefined) ||
+      (typeof fetchError?.data === "string" ? fetchError.data : undefined);
+
+    setStatus("error");
+    setStatusMessage(message || "Failed to complete sign-in. Please try again.");
+  };
+
+  const handleDomainSuccess = (result: { workspace_id: string; client_id: string; workspace_domain: string }) => {
+    if (!providerData) return;
+
+    const tenantDomain = result.workspace_domain;
+    const currentHost = window.location.hostname;
+    const shouldRedirect =
+      tenantDomain &&
+      tenantDomain !== currentHost &&
+      !currentHost.includes("localhost") &&
+      !currentHost.includes("127.0.0.1");
+
+    if (shouldRedirect) {
+      const handoffToken = encodeHandoff({
+        email: providerData.email,
+        workspace_domain: tenantDomain,
+        workspace_id: result.workspace_id,
+        first_login: true,
+        target: "webauthn",
+      });
+      const url = `${window.location.protocol}//${tenantDomain}/admin/webauthn?handoff=${handoffToken}`;
+      toast.success("Redirecting to your new workspace...");
+      window.location.href = url;
+      return;
+    }
+
+    toast.success("Workspace created. Complete security verification.");
+    setShowDomainModal(false);
+    setStatus("processing");
+    setStatusMessage("Redirecting to security verification...");
+
+    dispatch(resetAdminWebAuthnState());
+    dispatch(setAuthenticationError(null));
+    dispatch(
+      setLoginData({
+        workspaceId: result.workspace_id,
+        email: providerData.email,
+        isFirstLogin: true,
+      })
+    );
+    dispatch(setCurrentStep("login"));
+
+    const params = new URLSearchParams({
+      email: providerData.email,
+      workspace_id: result.workspace_id,
+      first_login: "true",
+    });
+    navigate(`/admin/webauthn?${params.toString()}`, { replace: true });
+  };
+
+  const getStatusTitle = () => {
+    if (status === "needs_domain") return "Set your workspace domain";
+    if (status === "error") return "Sign-in could not be completed";
+    return "Completing secure sign-in";
+  };
+
+  const getStatusTone = () => {
+    if (status === "needs_domain") return "auth-status-block--success";
+    if (status === "error") return "auth-status-block--error";
+    return "auth-status-block--processing";
+  };
+
+  return (
+    <AuthSplitFrame
+      valuePanel={
+        <AuthValuePanel
+          eyebrow="Admin Callback"
+          title="Completing provider sign-in."
+          subtitle="We’re validating your provider response and preparing secure workspace authentication."
+          points={[
+            "Provider identity is exchanged for tenant-safe context.",
+            "Same-domain MFA resumes from query-backed callback state.",
+            "Cross-domain handoff remains a temporary fallback only when needed.",
+          ]}
+        />
+      }
+    >
+      <AuthActionPanel className="space-y-5">
+        <AuthStepHeader
+          align="center"
+          title={getStatusTitle()}
+          subtitle={statusMessage}
+        />
+        <div className={`auth-status-block ${getStatusTone()}`}>
+          {status === "processing" && <Loader2 className="h-8 w-8 animate-spin text-slate-800" />}
+
+          {status === "needs_domain" && (
+            <>
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+              <p className="text-sm text-slate-700 text-center max-w-[32ch]">
+                We just need a workspace domain to finish setting up your account.
+              </p>
+            </>
+          )}
+
+          {status === "error" && (
+            <>
+              <AlertCircle className="h-8 w-8 text-red-500" />
+              <Button variant="outline" onClick={() => navigate("/admin/login")}>
+                Back to login
+              </Button>
+            </>
+          )}
+        </div>
+      </AuthActionPanel>
+
+      {providerData && (
+        <TenantDomainSelectionModal
+          open={showDomainModal}
+          onOpenChange={setShowDomainModal}
+          userData={providerData}
+          onSuccess={handleDomainSuccess}
+        />
+      )}
+    </AuthSplitFrame>
+  );
+};
+
+export default AdminOIDCCallbackPage;

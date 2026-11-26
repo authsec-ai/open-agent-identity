@@ -1,0 +1,1274 @@
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
+import { Provider } from "react-redux";
+import { Toaster } from "react-hot-toast";
+import { store } from "./app/store";
+import { AppLayout } from "./components/layout/AppLayout";
+import { AuthProvider } from "./auth/context/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { useSessionInit } from "./hooks/useSessionInit";
+import { RbacAudienceProvider } from "./contexts/RbacAudienceContext";
+import { GuidedTourProvider, GuidedTourOverlay } from "./features/guided-tour";
+import { WizardProvider } from "./contexts/WizardContext";
+import { DensityProvider } from "./contexts/DensityContext";
+import React from "react";
+
+const DashboardPage = React.lazy(() => import("./features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const AccessControlPage = React.lazy(() => import("./features/access/AccessControlPage"));
+
+const UsersPage = React.lazy(() => import("./features/users/UsersPage").then((m) => ({ default: m.UsersPage })));
+import NotFoundPage from "./components/shared/NotFoundPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+const EndUsersPage = React.lazy(() => import("./features/end-users/EndUsersPage"));
+const TeamPage = React.lazy(() => import("./features/team/TeamPage"));
+const TrustedIssuersPage = React.lazy(() => import("./features/settings/TrustedIssuersPage"));
+
+
+const DevBypassPage = import.meta.env.DEV
+  ? React.lazy(() =>
+      import("./features/dev-bypass/DevBypassPage").then((m) => ({
+        default: m.DevBypassPage,
+      })),
+    )
+  : null;
+const ScopeCatalogPage = React.lazy(() => import("./features/scope-catalog/ScopeCatalogPage"));
+// import { GroupsPage } from "./features/groups/GroupsPage";
+
+// Resource server is now a backend/API term. User-facing legacy
+// `/resource-servers/*` URLs redirect into the Applications console.
+const ApplicationsPage = React.lazy(() => import("./features/applications/ApplicationsPage"));
+const CreateApplicationPage = React.lazy(() => import("./features/applications/CreateApplicationPage"));
+const ApplicationLayout = React.lazy(() => import("./features/applications/ApplicationLayout"));
+const ApplicationSetupPage = React.lazy(() => import("./features/applications/ApplicationSetupPage"));
+const ApplicationToolsPage = React.lazy(() => import("./features/applications/ApplicationToolsPage"));
+const ApplicationScopesPage = React.lazy(() => import("./features/applications/ApplicationScopesPage"));
+import ApplicationAccessPageV2 from "./features/applications/ApplicationAccessPageV2";
+const ApplicationConnectionsPage = React.lazy(() => import("./features/applications/ApplicationConnectionsPage"));
+const ApplicationRolesPage = React.lazy(() => import("./features/applications/ApplicationRolesPage"));
+const ApplicationConsentGrantsPage = React.lazy(() => import("./features/applications/ApplicationConsentGrantsPage"));
+const ApplicationClientsPage = React.lazy(() => import("./features/applications/ApplicationClientsPage"));
+const ApplicationTestPage = React.lazy(() => import("./features/applications/ApplicationTestPage"));
+const ApplicationLaunchPage = React.lazy(() => import("./features/applications/ApplicationLaunchPage"));
+const ApplicationActivityPage = React.lazy(() => import("./features/applications/ApplicationActivityPage"));
+const AgentsPage = React.lazy(() => import("./features/agents/AgentsPage"));
+const ServiceAccountsPage = React.lazy(() => import("./features/service-accounts/ServiceAccountsPage"));
+const AdminVoiceAgentPage = React.lazy(() => import("./features/voice-auth/AdminVoiceAgentPage").then((m) => ({ default: m.AdminVoiceAgentPage })));
+const LogsConfigurationPage = React.lazy(() => import("./features/logging/LogsConfigurationPage").then((m) => ({ default: m.LogsConfigurationPage })));
+const AuthLogsPage = React.lazy(() => import("./features/logging/AuthLogsPage").then((m) => ({ default: m.AuthLogsPage })));
+const AuditLogsPage = React.lazy(() => import("./features/logging/AuditLogsPage").then((m) => ({ default: m.AuditLogsPage })));
+const M2MLogsPage = React.lazy(() => import("./features/logging/M2MLogsPage").then((m) => ({ default: m.M2MLogsPage })));
+const ScimConnectionsPage = React.lazy(() => import("./features/scim-connections/ScimConnectionsPage"));
+const DirectorySyncPage = React.lazy(() => import("./features/directory-sync/DirectorySyncPage"));
+const RolesPage = React.lazy(() => import("./features/roles/RolesPage").then((m) => ({ default: m.RolesPage })));
+const RoleTemplatesPage = React.lazy(() => import("./features/roles/RoleTemplatesPage").then((m) => ({ default: m.RoleTemplatesPage })));
+const AuthenticationPage = React.lazy(() => import("./features/authentication/AuthenticationPage").then((m) => ({ default: m.AuthenticationPage })));
+const CreateAuthMethodPage = React.lazy(() => import("./features/authentication/CreateAuthMethodPage").then((m) => ({ default: m.CreateAuthMethodPage })));
+const CreateSamlMethodPage = React.lazy(() => import("./features/authentication/CreateSamlMethodPage").then((m) => ({ default: m.CreateSamlMethodPage })));
+const EditSamlMethodPage = React.lazy(() => import("./features/authentication/EditSamlMethodPage").then((m) => ({ default: m.EditSamlMethodPage })));
+const EditOidcMethodPage = React.lazy(() => import("./features/authentication/EditOidcMethodPage").then((m) => ({ default: m.EditOidcMethodPage })));
+
+// External services and secrets management
+const ExternalServicesPage = React.lazy(() => import("./features/external-services/ExternalServicesPage").then((m) => ({ default: m.ExternalServicesPage })));
+const AddExternalServicePage = React.lazy(() => import("./features/external-services/AddExternalServicePage").then((m) => ({ default: m.AddExternalServicePage })));
+
+// Custom Domains
+const CustomDomainsPage = React.lazy(() => import("./features/custom-domains").then((m) => ({ default: m.CustomDomainsPage })));
+import {
+  TrustDelegationPoliciesPage,
+  TrustDelegationPolicyDetailPage,
+  TrustDelegationPolicyFormPage,
+} from "./features/trust-delegation";
+
+// LEGACY/OBSOLETE: SDK Manager has been deprecated
+// import { SDKManagerPage } from "./features/_LEGACY_sdk-manager/SDKManagerPage";
+
+// New pages
+// import CreateGroupPage from "./features/groups/CreateGroupPage";
+
+// RBAC pages
+const PermissionsPage = React.lazy(() => import("./features/permissions/PermissionsPage").then((m) => ({ default: m.PermissionsPage })));
+const RoleBindingsPage = React.lazy(() => import("./features/role-bindings/RoleBindingsPage").then((m) => ({ default: m.RoleBindingsPage })));
+const PermissionResourcesPage = React.lazy(() => import("./features/resources/PermissionResourcesPage").then((m) => ({ default: m.PermissionResourcesPage })));
+const EffectiveAccessPage = React.lazy(() => import("./features/effective-access/EffectiveAccessPage"));
+
+import { UnifiedAuthFlowPage } from "./auth/app/UnifiedAuthFlowPage";
+
+// Other pages
+import { LandingPage } from "./pages/LandingPage";
+const ClientsPage = React.lazy(() => import("./features/clients/ClientsPage").then((m) => ({ default: m.ClientsPage })));
+
+function LegacyTrustDelegationPolicyDetailRedirect() {
+  const { policyId = "" } = useParams();
+  return <Navigate to={`/trust-delegation/${policyId}`} replace />;
+}
+
+function LegacyTrustDelegationPolicyEditRedirect() {
+  const { policyId = "" } = useParams();
+  return <Navigate to={`/trust-delegation/${policyId}/edit`} replace />;
+}
+
+function LegacyClientOnboardRedirect() {
+  const { clientId } = useParams<{ clientId?: string }>();
+  const target = clientId
+    ? `/applications/${encodeURIComponent(clientId)}/overview`
+    : "/applications/new";
+
+  return <Navigate to={target} replace />;
+}
+
+function LegacyResourceServerRedirect({
+  section = "overview",
+}: {
+  section?: string;
+}) {
+  const { id = "" } = useParams<{ id?: string }>();
+  const encoded = encodeURIComponent(id);
+  return <Navigate to={`/applications/${encoded}/${section}`} replace />;
+}
+
+function LegacySDKGuidesRedirect() {
+  return <Navigate to="/applications" replace />;
+}
+
+function RedirectWithQuery({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+}
+
+
+/**
+ * App content component that uses session initialization
+ */
+/**
+ * Route-scoped error boundary. Keying by pathname remounts the boundary on
+ * navigation, so a crash on one page clears itself when the user navigates
+ * away instead of wedging the whole app until a manual reload.
+ */
+function RoutedErrorBoundary({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+}
+
+function AppContent() {
+  useSessionInit();
+
+  return (
+    <AuthProvider>
+      <RbacAudienceProvider>
+        {/* A navigation is a React transition: while a lazy page's chunk downloads the
+            current page and its sidebar stay on screen. Without this, the one Suspense
+            above <Routes> swaps the whole app -- shell included -- for "Loading…" on
+            every first visit to a page. */}
+        <Router future={{ v7_startTransition: true }}>
+          <DensityProvider>
+          <WizardProvider>
+            <GuidedTourProvider>
+              <div className="min-h-screen bg-background text-foreground">
+                <RoutedErrorBoundary>
+                <React.Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading…</div>}>
+                <Routes>
+                  {/* Auth routes - accessible without authentication */}
+                  <Route path="/admin/login" element={<UnifiedAuthFlowPage />} />
+                  <Route
+                    path="/authsec/admin/login"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/admin/signin"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/authsec/admin/signin"
+                    element={<Navigate to="/authsec/admin/login" replace />}
+                  />
+                  <Route
+                    path="/admin/signup"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/authsec/admin/signup"
+                    element={<Navigate to="/authsec/admin/login" replace />}
+                  />
+                  <Route
+                    path="/admin/verify-otp"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/authsec/admin/verify-otp"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route path="/admin/webauthn" element={<UnifiedAuthFlowPage />} />
+                  <Route
+                    path="/authsec/admin/webauthn"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/admin/auth/callback"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/authsec/admin/auth/callback"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/auth/callback"
+                    element={<RedirectWithQuery to="/admin/auth/callback" />}
+                  />
+                  <Route
+                    path="/authsec/auth/callback"
+                    element={<RedirectWithQuery to="/authsec/admin/auth/callback" />}
+                  />
+                  <Route
+                    path="/uflow/oidc/callback"
+                    element={<RedirectWithQuery to="/admin/auth/callback" />}
+                  />
+                  <Route
+                    path="/authsec/uflow/oidc/callback"
+                    element={<RedirectWithQuery to="/authsec/admin/auth/callback" />}
+                  />
+                  <Route
+                    path="/admin/create-workspace"
+                    element={
+                      <ProtectedRoute requireProject={false}>
+                        <UnifiedAuthFlowPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/authsec/admin/create-workspace"
+                    element={
+                      <ProtectedRoute requireProject={false}>
+                        <UnifiedAuthFlowPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Redirect incorrect hyphenated URLs to correct routes */}
+                  <Route
+                    path="/admin/sign-up"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/admin/sign-in"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+
+                  {/* Backwards compatibility redirects */}
+                  <Route
+                    path="/auth/signin"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/auth/signup"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/auth/sign-in"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/auth/sign-up"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+                  <Route
+                    path="/auth/verify-otp"
+                    element={<Navigate to="/admin/verify-otp" replace />}
+                  />
+                  <Route
+                    path="/auth/webauthn"
+                    element={<Navigate to="/admin/webauthn" replace />}
+                  />
+                  <Route
+                    path="/auth/create-workspace"
+                    element={<Navigate to="/admin/create-workspace" replace />}
+                  />
+                  <Route
+                    path="/obsolete/login"
+                    element={<Navigate to="/admin/login" replace />}
+                  />
+
+                  {/* OIDC login page matching backend template design */}
+                  <Route path="/oidc/login" element={<UnifiedAuthFlowPage />} />
+                  <Route path="/authsec/oidc/login" element={<UnifiedAuthFlowPage />} />
+                  <Route
+                    path="/oidc/auth/callback"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route
+                    path="/authsec/oidc/auth/callback"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+                  <Route path="/oidc/mfa" element={<UnifiedAuthFlowPage />} />
+                  <Route path="/authsec/oidc/mfa" element={<UnifiedAuthFlowPage />} />
+                  <Route path="/oidc/error" element={<UnifiedAuthFlowPage />} />
+                  <Route
+                    path="/authsec/oidc/error"
+                    element={<UnifiedAuthFlowPage />}
+                  />
+
+                  {/* Root route - handles authentication redirect */}
+                  <Route path="/" element={<LandingPage />} />
+
+                  {/* Protected routes - require authentication and workspace */}
+
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <DashboardPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* ───── Legacy URL redirects ────────────────────────────
+                       Pre-Launch-Control bookmarks resolve to their new
+                       /applications/* equivalent. The SDK / Prompt /
+                       Onboarding sub-pages are still real surfaces (the
+                       new Setup tab links to them) so they stay registered
+                       with their original components below. */}
+                  <Route
+                    path="/clients"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ClientsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/resource-servers"
+                    element={<Navigate to="/applications" replace />}
+                  />
+                  <Route
+                    path="/resource-servers/new"
+                    element={<Navigate to="/applications/new" replace />}
+                  />
+                  <Route
+                    path="/resource-servers/:id"
+                    element={<LegacyResourceServerRedirect section="overview" />}
+                  />
+                  <Route
+                    path="/resource-servers/:id/clients"
+                    element={<LegacyResourceServerRedirect section="clients" />}
+                  />
+
+                  {/* Legacy resource-server sub-pages now resolve into the
+                       Applications lifecycle. */}
+                  <Route
+                    path="/resource-servers/:id/onboarding"
+                    element={<LegacyResourceServerRedirect section="overview" />}
+                  />
+                  <Route
+                    path="/resource-servers/:id/sdk"
+                    element={<LegacyResourceServerRedirect section="setup" />}
+                  />
+                  <Route
+                    path="/resource-servers/:id/prompt"
+                    element={<LegacyResourceServerRedirect section="setup" />}
+                  />
+                  <Route
+                    path="/resource-servers/:id/scope-matrix"
+                    element={<LegacyResourceServerRedirect section="tools" />}
+                  />
+
+                  {/* ───── Launch Control ──────────────────────────────────
+                       The chrome (header + readiness ribbon + tabs) renders
+                       once via `ApplicationLayout`; nested routes only
+                       swap the <Outlet> content. */}
+                  <Route
+                    path="/applications"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ApplicationsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/applications/new"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <CreateApplicationPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/applications/:id"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ApplicationLayout />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route index element={<Navigate to="overview" replace />} />
+                    <Route path="launch" element={<Navigate to="../overview" replace />} />
+                    <Route path="overview" element={<ApplicationLaunchPage />} />
+                    <Route path="setup" element={<ApplicationSetupPage />} />
+                    <Route path="tools" element={<ApplicationToolsPage />} />
+                    <Route path="scopes" element={<ApplicationScopesPage />} />
+                    <Route path="access" element={<Navigate to="../access-assignments" replace />} />
+                    <Route path="role-bindings" element={<Navigate to="../access-assignments" replace />} />
+                    <Route path="workloads" element={<Navigate to="../connections" replace />} />
+                    <Route path="requests" element={<Navigate to="../connections" replace />} />
+                    <Route path="roles" element={<ApplicationRolesPage />} />
+                    <Route path="access-assignments" element={<ApplicationAccessPageV2 />} />
+                    <Route path="connections" element={<ApplicationConnectionsPage />} />
+                    <Route path="consent-grants" element={<ApplicationConsentGrantsPage />} />
+                    <Route path="clients" element={<ApplicationClientsPage />} />
+                    <Route path="test" element={<ApplicationTestPage />} />
+                    <Route path="activity" element={<ApplicationActivityPage />} />
+                    {/* Any unknown application subpath falls back to overview instead
+                        of a silent blank screen (previously an unmatched nested route
+                        rendered nothing and logged nothing). */}
+                    <Route path="*" element={<Navigate to="overview" replace />} />
+                  </Route>
+
+                  <Route
+                    path="/clients/onboard"
+                    element={<Navigate to="/applications/new" replace />}
+                  />
+
+                  <Route
+                    path="/clients/onboard/:clientId"
+                    element={<LegacyClientOnboardRedirect />}
+                  />
+
+                  <Route
+                    path="/clients/voice-agent"
+                    element={<Navigate to="/agents" replace />}
+                  />
+
+                  <Route
+                    path="/admin/voice-agent"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AdminVoiceAgentPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* <Route
+                path="/clients/workloads"
+                element={
+                  <ProtectedRoute requireProject>
+                    <AppLayout>
+                      <WorkloadsPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              /> */}
+                  <Route
+                    path="/clients/agents"
+                    element={<Navigate to="/agents" replace />}
+                  />
+
+                  <Route
+                    path="/agents"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AgentsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* <Route
+                path="/clients/workloads/create"
+                element={
+                  <ProtectedRoute requireProject>
+                    <AppLayout>
+                      <CreateWorkloadPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              /> */}
+
+                  {/* <Route
+                path="/clients/workloads/edit/:id"
+                element={
+                  <ProtectedRoute requireProject>
+                    <AppLayout>
+                      <CreateWorkloadPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              /> */}
+
+                  <Route
+                    path="/clients/workloads/create"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/clients/workloads/edit/:id"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/clients/workloads"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/workloads"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/workloads/create"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/workloads/edit/:id"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/workloads/certificates"
+                    element={<Navigate to="/service-accounts" replace />}
+                  />
+
+                  <Route
+                    path="/service-accounts"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ServiceAccountsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+
+                  {/* Redirects for legacy non-context routes */}
+                  <Route
+                    path="/users"
+                    element={<Navigate to="/admin/users" replace />}
+                  />
+
+                  {/* ── Phase A: object-first routes (no /admin or /enduser prefix) ── */}
+                  <Route
+                    path="/end-users"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <EndUsersPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/end-users/:userId"
+                    element={<Navigate to="/end-users" replace />}
+                  />
+
+                  {/* ── Phase I-G: Access Control routes ─────────────── */}
+                  <Route
+                    path="/access"
+                    element={<Navigate to="/access/roles" replace />}
+                  />
+                  <Route
+                    path="/access/roles"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AccessControlPage initialTab="roles" />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/access/scopes"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AccessControlPage initialTab="scopes" />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/access/assignments"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AccessControlPage initialTab="assignments" />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Legacy authz redirects */}
+                  <Route
+                    path="/authz/role-bindings"
+                    element={<Navigate to="/access/assignments" replace />}
+                  />
+                  <Route
+                    path="/authz/roles"
+                    element={<Navigate to="/access/roles" replace />}
+                  />
+                  <Route
+                    path="/authz/application-scopes"
+                    element={<Navigate to="/access/scopes" replace />}
+                  />
+
+                  <Route
+                    path="/settings/team"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TeamPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings/trusted-issuers"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TrustedIssuersPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  {import.meta.env.DEV && DevBypassPage && (
+                    <Route
+                      path="/dev/bypass"
+                      element={
+                        <React.Suspense
+                          fallback={<div className="p-6">Loading…</div>}
+                        >
+                          <DevBypassPage />
+                        </React.Suspense>
+                      }
+                    />
+                  )}
+                  <Route
+                    path="/authz/effective-access"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <EffectiveAccessPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/effective-access"
+                    element={<Navigate to="/authz/effective-access" replace />}
+                  />
+                  <Route
+                    path="/access/scope-catalog"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ScopeCatalogPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/authz/scope-catalog"
+                    element={<Navigate to="/access/scope-catalog" replace />}
+                  />
+                  <Route
+                    path="/consent-grants"
+                    element={<Navigate to="/applications" replace />}
+                  />
+
+                  {/* Context-aware RBAC and OAuth routes (legacy — kept while Phase A→F migrates each surface) */}
+                  <Route path="/:context">
+                    <Route
+                      path="users"
+                      element={
+                        <ProtectedRoute requireProject>
+                          <AppLayout>
+                            <UsersPage />
+                          </AppLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* <Route
+                  path="groups"
+                  element={
+                    <ProtectedRoute requireProject>
+                      <AppLayout>
+                        <GroupsPage />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="groups/create"
+                  element={
+                    <ProtectedRoute requireProject>
+                      <AppLayout>
+                        <CreateGroupPage />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="groups/edit/:id"
+                  element={
+                    <ProtectedRoute requireProject>
+                      <AppLayout>
+                        <CreateGroupPage />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                /> */}
+
+                    <Route path="roles" element={<Navigate to="authz/roles" replace />} />
+                    <Route
+                      path="scopes"
+                      element={<Navigate to="/applications" replace />}
+                    />
+                    <Route
+                      path="api-oauth-scopes"
+                      element={<Navigate to="/applications" replace />}
+                    />
+                    <Route
+                      path="permissions"
+                      element={<Navigate to="authz/permissions" replace />}
+                    />
+                    <Route
+                      path="resources"
+                      element={<Navigate to="authz/resources" replace />}
+                    />
+                    <Route
+                      path="role-bindings"
+                      element={<Navigate to="authz/role-bindings" replace />}
+                    />
+
+                    <Route path="authz">
+                      <Route
+                        path="roles"
+                        element={
+                          <ProtectedRoute requireProject>
+                            <AppLayout>
+                              <RolesPage />
+                            </AppLayout>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="internal-scopes"
+                        element={<Navigate to="/applications" replace />}
+                      />
+                      <Route
+                        path="permissions"
+                        element={
+                          <ProtectedRoute requireProject>
+                            <AppLayout>
+                              <PermissionsPage />
+                            </AppLayout>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="resources"
+                        element={
+                          <ProtectedRoute requireProject>
+                            <AppLayout>
+                              <PermissionResourcesPage />
+                            </AppLayout>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="role-bindings"
+                        element={
+                          <ProtectedRoute requireProject>
+                            <AppLayout>
+                              <RoleBindingsPage />
+                            </AppLayout>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="scope-catalog"
+                        element={<Navigate to="/authz/application-scopes" replace />}
+                      />
+                      <Route
+                        path="application-scopes"
+                        element={<Navigate to="/authz/application-scopes" replace />}
+                      />
+                    </Route>
+
+                    <Route path="oauth">
+                      <Route
+                        path="resource-scopes"
+                        element={<Navigate to="/applications" replace />}
+                      />
+                    </Route>
+
+                    <Route
+                      path="consent-grants"
+                      element={<Navigate to="/applications" replace />}
+                    />
+
+                    {/* Bare or unknown context paths must not render a blank page */}
+                    <Route index element={<Navigate to="/dashboard" replace />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Route>
+
+                  {/* Legacy redirects - redirect old paths to admin context */}
+                  <Route
+                    path="/roles"
+                    element={<Navigate to="/admin/authz/roles" replace />}
+                  />
+                  <Route
+                    path="/scopes"
+                    element={<Navigate to="/applications" replace />}
+                  />
+                  <Route
+                    path="/api-oauth-scopes"
+                    element={<Navigate to="/applications" replace />}
+                  />
+                  <Route
+                    path="/permissions"
+                    element={<Navigate to="/admin/authz/permissions" replace />}
+                  />
+                  <Route
+                    path="/resources"
+                    element={<Navigate to="/admin/authz/resources" replace />}
+                  />
+                  <Route
+                    path="/mappings"
+                    element={<Navigate to="/admin/authz/role-bindings" replace />}
+                  />
+                  <Route
+                    path="/role-bindings"
+                    element={<Navigate to="/admin/authz/role-bindings" replace />}
+                  />
+
+                  <Route
+                    path="/authentication"
+                    element={<Navigate to="/identity-providers" replace />}
+                  />
+
+                  <Route
+                    path="/identity-providers"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AuthenticationPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/authentication/create"
+                    element={<Navigate to="/identity-providers/create" replace />}
+                  />
+
+                  <Route
+                    path="/identity-providers/create"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <CreateAuthMethodPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/authentication/saml/create"
+                    element={<Navigate to="/identity-providers/saml/create" replace />}
+                  />
+
+                  <Route
+                    path="/identity-providers/saml/create"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <CreateSamlMethodPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/authentication/saml/edit/:id"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <EditSamlMethodPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/identity-providers/saml/edit/:id"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <EditSamlMethodPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/identity-providers/oidc/edit/:id"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <EditOidcMethodPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/scim-connections"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ScimConnectionsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/directory-sync"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <DirectorySyncPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/logs"
+                    element={<Navigate to="/logs/auth" replace />}
+                  />
+
+                  <Route
+                    path="/logs/auth"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AuthLogsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/logs/audit"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AuditLogsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/logs/m2m"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <M2MLogsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/logs/configure"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <LogsConfigurationPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/roles"
+                    element={<Navigate to="/admin/authz/roles" replace />}
+                  />
+
+                  <Route
+                    path="/roles/templates"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <RoleTemplatesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* RBAC Routes */}
+                  <Route
+                    path="/scopes"
+                    element={<Navigate to="/applications" replace />}
+                  />
+
+                  <Route
+                    path="/permissions"
+                    element={<Navigate to="/admin/authz/permissions" replace />}
+                  />
+
+                  <Route
+                    path="/external-services"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <ExternalServicesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/external-services/add"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <AddExternalServicePage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/external-services/:serviceId/sdk"
+                    element={<Navigate to="/external-services" replace />}
+                  />
+
+                  <Route
+                    path="/sdk"
+                    element={<LegacySDKGuidesRedirect />}
+                  />
+
+                  <Route
+                    path="/sdk/:surface"
+                    element={<LegacySDKGuidesRedirect />}
+                  />
+
+                  <Route
+                    path="/sdk/:surface/:entityId"
+                    element={<LegacySDKGuidesRedirect />}
+                  />
+
+                  <Route
+                    path="/developer/sdk-guides"
+                    element={<Navigate to="/applications" replace />}
+                  />
+
+                  <Route
+                    path="/developer/sdk-guides/:surface"
+                    element={<Navigate to="/applications" replace />}
+                  />
+
+                  <Route
+                    path="/developer/sdk-guides/:surface/:entityId"
+                    element={<Navigate to="/applications" replace />}
+                  />
+
+                  {/* Custom Domains */}
+                  <Route
+                    path="/custom-domains"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <CustomDomainsPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TrustDelegationPoliciesPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/active"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <Navigate to="/trust-delegation" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/new"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TrustDelegationPolicyFormPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/:policyId"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TrustDelegationPolicyDetailPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/:policyId/edit"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <AppLayout>
+                          <TrustDelegationPolicyFormPage />
+                        </AppLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/policies"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <Navigate to="/trust-delegation" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/policies/new"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <Navigate to="/trust-delegation/new" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/policies/:policyId"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <LegacyTrustDelegationPolicyDetailRedirect />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/policies/:policyId/edit"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <LegacyTrustDelegationPolicyEditRedirect />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/trust-delegation/logs"
+                    element={
+                      <ProtectedRoute requireProject>
+                        <Navigate to="/trust-delegation" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* LEGACY/OBSOLETE: SDK Manager route has been deprecated */}
+                  {/* <Route
+                path="/sdk/manager"
+                element={
+                  <ProtectedRoute requireProject>
+                    <AppLayout>
+                      <SDKManagerPage />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              /> */}
+
+                  {/* Global catch-all — unmatched URLs must never render a blank page */}
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+                </React.Suspense>
+                </RoutedErrorBoundary>
+
+                {/* Professional toast notification system */}
+                <Toaster
+                  position="bottom-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      maxWidth: "500px",
+                    },
+                  }}
+                />
+
+                {/* Guided tour overlay */}
+                <GuidedTourOverlay />
+              </div>
+            </GuidedTourProvider>
+          </WizardProvider>
+          </DensityProvider>
+        </Router>
+      </RbacAudienceProvider>
+    </AuthProvider>
+  );
+}
+
+/**
+ * Main App component with routing and state management
+ *
+ * Provides:
+ * - Redux store provider
+ * - Session initialization
+ * - React Router for navigation
+ * - Main application layout
+ * - Route definitions for all pages
+ * - Toast notifications system
+ */
+function App() {
+  return (
+    <Provider store={store}>
+      <AppContent />
+    </Provider>
+  );
+}
+
+export default App;

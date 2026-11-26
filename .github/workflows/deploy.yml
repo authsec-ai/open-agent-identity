@@ -1,0 +1,273 @@
+name: Deploy
+
+# Build, push, deploy and VERIFY the console.
+#
+# The same contract as the backend's deploy workflow, and the same two rules,
+# because the console failed the same way: `ui:production` is a floating tag, so
+# it identifies no commit AND a rollout to it is a no-op -- Kubernetes sees no
+# diff and keeps the cached image. Build, push, "deploy", and keep serving the
+# old bundle with nothing on screen to say so.
+#
+# Backend first, console second, is deliberate. The console talks to the API; a
+# console shipping ahead of the endpoints it calls shows a customer errors that
+# are not their problem. This workflow does not enforce the ordering across
+# repositories -- that is what the release procedure in SPEC-deployment-k3s.md
+# is for -- but it does refuse to finish until the console it deployed says it
+# is the commit asked for.
+
+on:
+  push:
+    branches:
+      - authsec-staging
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  REGISTRY: docker-repo-public.authnull.com
+  IMAGE: ui
+  NAMESPACE: authsec-prod
+  DEPLOYMENT: prod-ui
+  CONTAINER: prod-ui
+  APP: https://app.authsec.ai
+  API_URL: https://prod.api.authsec.ai
+
+jobs:
+  verify-source:
+    name: Typecheck, lint, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+
+      # -p tsconfig.app.json, NOT a bare `tsc --noEmit`.
+      #
+      # The root tsconfig.json is a solution file with "files": [], so a bare
+      # run type-checks NOTHING and exits 0 on a broken tree. That is not
+      # hypothetical -- it is how this project accumulated its existing
+      # diagnostics unnoticed.
+      #
+      # The ceiling was 198 while the project carried known errors. They are
+      # all fixed, so the gate is now zero: any error fails the build. Never
+      # raise it to buy time -- fix the error or revert the change.
+      - name: TypeScript (must be clean)
+        run: |
+          STATUS=0
+          npx tsc -p tsconfig.app.json --noEmit > typecheck.log 2>&1 || STATUS=$?
+          COUNT=$(grep -cE "error TS" typecheck.log || true)
+          # A parse error reports as a single diagnostic and hides every other
+          # one, so a clean count is only trustworthy once the program itself
+          # parses. This check is what makes "0 errors" mean something.
+          node <<'JS'
+          const ts = require("typescript");
+          const config = ts.readConfigFile("tsconfig.app.json", ts.sys.readFile);
+          if (config.error) { console.error(config.error); process.exit(1); }
+          const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, ".");
+          const program = ts.createProgram(parsed.fileNames, parsed.options);
+          const errors = [...parsed.errors, ...program.getSyntacticDiagnostics()];
+          if (errors.length) { console.error(errors); process.exit(1); }
+          console.log(`parsed ${parsed.fileNames.length} files cleanly`);
+          JS
+          echo "TypeScript errors: $COUNT (ceiling 0)"
+          if [ "$COUNT" -gt 0 ] || [ "$STATUS" -ne 0 ]; then
+            cat typecheck.log
+            exit 1
+          fi
+
+      # Was a ratchet at 17 while those errors stood. They are gone, so this
+      # is a plain gate now. Never raise it to get a deploy out.
+      - name: ESLint (must be clean)
+        run: |
+          # -f json and sum errorCount. Grepping the human formatter is what
+          # made the first version of this step read 0 every time — a ratchet
+          # that can never fail is worse than no ratchet, because it looks like
+          # coverage.
+          STATUS=0
+          npx eslint "src/features/discovery/**/*.{ts,tsx}" "src/app/api/*.ts" -f json > eslint-report.json || STATUS=$?
+          if [ "$STATUS" -gt 1 ]; then
+            echo "ESLint could not complete."
+            exit "$STATUS"
+          fi
+          COUNT=$(python3 -c "import json; print(sum(f['errorCount'] for f in json.load(open('eslint-report.json'))))")
+          echo "ESLint errors: $COUNT (ceiling 0)"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "ESLint errors must be fixed before deploying."
+            npx eslint "src/features/discovery/**/*.{ts,tsx}" "src/app/api/*.ts" || true
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: npx vitest run
+
+      - name: Production build
+        run: npm run build
+
+  build:
+    name: Build and push image
+    needs: verify-source
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.confirm == 'DEPLOY'
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: meta
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          # ONLY the SHA tag. :production is moved by the deploy job AFTER
+          # verification, so it names the last build proven to work rather than
+          # the last build attempted. Tagging it here broke rollback (undo
+          # restores the previous spec's tag, which this push had overwritten)
+          # and let any pod restart pull untested code.
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
+          build-args: |
+            GIT_COMMIT=${{ steps.meta.outputs.sha }}
+            GIT_BRANCH=${{ github.ref_name }}
+            BUILT_AT=${{ steps.meta.outputs.built_at }}
+            VITE_API_URL=${{ env.API_URL }}
+            VITE_OAUTH_BASE_URL=${{ env.API_URL }}
+
+  deploy:
+    name: Deploy and verify
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up cluster access
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          if [ -z "${KUBECONFIG_B64:-}" ]; then
+            echo "::error::KUBECONFIG_B64 is not set. Mint it with authsec/scripts/make-deployer-kubeconfig.sh"
+            exit 1
+          fi
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          # `kubectl version --client` passes with NO kubeconfig at all, so it
+          # proves nothing -- an empty secret sails through and the job dies
+          # later, somewhere that looks unrelated. Reach the API instead.
+          kubectl auth can-i patch deployments -n "$NAMESPACE"
+
+      # No database backup step here, unlike the backend: the console owns no
+      # schema and runs no migrations. Adding a ceremonial dump would teach
+      # people the step is ceremonial.
+      # Rollback needs a target a later push cannot move. The Deployment spec
+      # holds a TAG, and `kubectl rollout undo` restores that tag -- so if the
+      # tag has since been repointed, "rollback" lands on the new image and
+      # reports success having changed nothing. A digest cannot be repointed.
+      - name: Record the running image digest
+        id: current
+        run: |
+          sel="$(kubectl get deploy -n "$NAMESPACE" "$DEPLOYMENT" -o json \
+            | jq -r '.spec.selector.matchLabels | to_entries
+                     | map("\(.key)=\(.value)") | join(",")')"
+          digest="$(kubectl get pods -n "$NAMESPACE" -l "$sel" -o json \
+            | jq -r --arg c "$CONTAINER" '[.items[].status.containerStatuses[]?
+                     | select(.name == $c) | .imageID]
+                     | map(select(. != null and . != "")) | first // ""')"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          if [ -n "$digest" ]; then
+            echo "Currently running: $digest"
+          else
+            echo "::warning::No running pod found -- rollback will be unavailable."
+          fi
+
+      - name: Point the deployment at this commit
+        id: rollout
+        run: |
+          kubectl set image -n "$NAMESPACE" \
+            "deploy/$DEPLOYMENT" \
+            "$CONTAINER=$REGISTRY/$IMAGE:${{ needs.build.outputs.sha }}"
+          echo "image_updated=true" >> "$GITHUB_OUTPUT"
+          kubectl annotate -n "$NAMESPACE" "deploy/$DEPLOYMENT" \
+            kubernetes.io/change-cause="deploy ${{ needs.build.outputs.sha }} by ${{ github.actor }}" \
+            --overwrite
+          kubectl rollout status -n "$NAMESPACE" "deploy/$DEPLOYMENT" --timeout=5m
+
+      # Polls rather than asking once -- see the header of the script.
+      - name: Verify the running commit
+        id: verify
+        run: SERVICE=ui API="$APP" ./scripts/check-deployed-version.sh "${{ needs.build.outputs.sha }}"
+
+      # Only now does :production move, so a pod restarting for any reason
+      # comes back on code that answered its own version endpoint correctly.
+      - name: Promote :production to the verified image
+        # A registry hiccup here must not tear down a deploy that just proved
+        # itself. The tag lagging is cosmetic; rolling back working code is not.
+        continue-on-error: true
+        env:
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" \
+            | docker login "$REGISTRY" -u "$REGISTRY_USERNAME" --password-stdin
+          docker buildx imagetools create \
+            --tag "$REGISTRY/$IMAGE:production" \
+            "$REGISTRY/$IMAGE:${{ needs.build.outputs.sha }}"
+          echo ":production now points at ${{ needs.build.outputs.sha }}"
+
+      - name: Roll back if verification failed
+        # `failure()` is required for this to run at all -- without a status
+        # function GitHub implicitly ANDs the condition with success(). The
+        # outcome check narrows it to VERIFY having failed, so a later step
+        # breaking cannot roll back a proven-good deploy.
+        if: failure() && steps.verify.outcome == 'failure' && steps.rollout.outputs.image_updated == 'true'
+        run: |
+          digest='${{ steps.current.outputs.digest }}'
+          if [ -z "$digest" ]; then
+            echo "::error::Verification failed and no previous digest was recorded."
+            echo "The new image is still live. Roll back by hand:"
+            echo "  kubectl rollout undo -n $NAMESPACE deploy/$DEPLOYMENT"
+            exit 1
+          fi
+          echo "Verification failed — rolling back to $digest"
+          # By digest, not `rollout undo`: undo restores the previous spec's
+          # TAG, and a tag can have been repointed since. This cannot.
+          kubectl set image -n "$NAMESPACE" "deploy/$DEPLOYMENT" "$CONTAINER=$digest"
+          kubectl annotate -n "$NAMESPACE" "deploy/$DEPLOYMENT" \
+            kubernetes.io/change-cause="rollback from ${{ needs.build.outputs.sha }} (verification failed)" \
+            --overwrite
+          kubectl rollout status -n "$NAMESPACE" "deploy/$DEPLOYMENT" --timeout=5m
+
+          # Prove the rollback rather than trusting it.
+          now="$(kubectl get pods -n "$NAMESPACE" \
+            -l "$(kubectl get deploy -n "$NAMESPACE" "$DEPLOYMENT" -o json \
+                  | jq -r '.spec.selector.matchLabels | to_entries
+                           | map("\(.key)=\(.value)") | join(",")')" -o json \
+            | jq -r --arg c "$CONTAINER" '[.items[].status.containerStatuses[]?
+                     | select(.name == $c) | .imageID] | first // ""')"
+          if [ "$now" != "$digest" ]; then
+            echo "::error::Rollback did not land. Running $now, expected $digest."
+            exit 1
+          fi
+          echo "Rollback confirmed."
