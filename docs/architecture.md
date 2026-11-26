@@ -60,9 +60,7 @@ it via `baseApi.injectEndpoints({})`. The few standalone APIs (`userAuthApi`, `o
 | `scimConnectionsApi.ts` | SCIM 2.0 connections |
 | `syncConfigsApi.ts` | SCIM sync configurations |
 | `consentGrantsApi.ts` | OAuth consent grants |
-| `billingApi.ts` | Billing / plans |
 | `domainApi.ts` | Custom domains |
-| `vaultApi.ts` | Vault integration |
 | `externalServiceApi.ts` | External service connections |
 | `adminVoiceAgentApi.ts` | Voice agent (admin) |
 | `voiceAgentApi.ts` | Voice agent (end-user) |
@@ -95,8 +93,6 @@ except from `src/components/`.
 | `clients/` | OAuth client list |
 | `trust-delegation/` | Delegation policies |
 | `settings/` | Workspace settings |
-| `billing/` | Billing |
-| `vault/` | Vault keys |
 
 ## Routing
 

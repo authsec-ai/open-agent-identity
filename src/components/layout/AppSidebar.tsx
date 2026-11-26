@@ -18,9 +18,7 @@
  *
  * Connectors is the outbound ACTION broker, and its only shipped consumer today
  * is an agent calling a provider through the broker -- there is nothing an
- * operator does on that screen yet. It was also being mistaken for GitHub
- * discovery setup, which now owns its own flow under the IGA console and shares
- * none of its records. SPEC-connectors R2 plans a spec-compliant admin surface,
+ * operator does on that screen yet. SPEC-connectors R2 plans a spec-compliant admin surface,
  * so the files stay; only the rail entry and the route are gone.
  */
 

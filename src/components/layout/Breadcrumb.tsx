@@ -166,30 +166,16 @@ export function Breadcrumb() {
   // reader left it — and the object's own name follows. Every segment before
   // the name is a real link. The active tab is not repeated; the tabs say it.
   if (tail && (location.pathname === tail.path || location.pathname.startsWith(`${tail.path}/`))) {
-    if (tail.list?.parent) {
-      // Discovery › <list>: replaces the URL's own segments (IGA › Workloads),
-      // which name a route, not where the reader came from. The console's own
-      // "IGA" crumb stays, so an object page reads Home › IGA › Discovery ›
-      // <list> › <object> like every other IGA page (X-01).
-      const keep = breadcrumbs[1]?.label === "IGA" ? 2 : 1;
-      breadcrumbs.splice(
-        keep,
-        breadcrumbs.length - keep,
-        { label: tail.list.parent.label, href: tail.list.parent.href },
-        { label: tail.list.label, href: tail.list.href },
-      );
-    } else {
-      // The object's own segment, and anything after it (its tab, a sub-page),
-      // is replaced by the tail: keep only the segments that precede it. An
-      // object id that is not a UUID is still in the URL, so count, don't guess.
-      const depth = tail.path.split("/").filter(Boolean).length - 1;
-      if (depth >= 1 && breadcrumbs.length > depth + 1) breadcrumbs.length = depth + 1;
-      const last = breadcrumbs[breadcrumbs.length - 1];
-      if (last && last !== breadcrumbs[0]) {
-        breadcrumbs[breadcrumbs.length - 1] = tail.list
-          ? { label: tail.list.label, href: tail.list.href }
-          : { ...last, href: tail.path.slice(0, tail.path.lastIndexOf("/")), current: false };
-      }
+    // The object's own segment, and anything after it (its tab, a sub-page),
+    // is replaced by the tail: keep only the segments that precede it. An
+    // object id that is not a UUID is still in the URL, so count, don't guess.
+    const depth = tail.path.split("/").filter(Boolean).length - 1;
+    if (depth >= 1 && breadcrumbs.length > depth + 1) breadcrumbs.length = depth + 1;
+    const last = breadcrumbs[breadcrumbs.length - 1];
+    if (last && last !== breadcrumbs[0]) {
+      breadcrumbs[breadcrumbs.length - 1] = tail.list
+        ? { label: tail.list.label, href: tail.list.href }
+        : { ...last, href: tail.path.slice(0, tail.path.lastIndexOf("/")), current: false };
     }
     breadcrumbs.push({ label: tail.label, current: true });
   }

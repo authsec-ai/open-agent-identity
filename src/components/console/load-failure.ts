@@ -1,6 +1,6 @@
 /**
- * What a failed request means, said plainly (SPEC-iga-phase2-graph.md
- * §2.14.2 *Every action says what actually happened*). A 404 is "not found";
+ * What a failed request means, said plainly (*Every action says what
+ * actually happened*). A 404 is "not found";
  * a 403 is a missing permission; a 401 is a signed-out session; anything
  * else — a 500, a timeout, no network — is a failed request that Retry may
  * fix. A failed request is never presented as a missing object or an empty

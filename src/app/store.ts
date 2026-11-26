@@ -42,11 +42,10 @@ import { reloadForSessionChange } from "../utils/crossTabReload";
  * - Authentication state
  * - Development tools in dev mode
  */
-// Ending or switching a session resets the RTK Query cache and the identity graph's pinned
-// revisions. The backend takes the workspace from the token, so a cached
+// Ending or switching a session resets the RTK Query cache. The backend takes the workspace from the token, so a cached
 // response carries no workspace of its own: without this, the next session on
 // the same origin could be served the previous workspace's data
-// (SPEC-iga-phase2-graph.md §2.14.14, cache isolation). A session ends by
+// (cache isolation). A session ends by
 // signing out, or by `checkSession` finding it expired, which clears the
 // session without dispatching `logout`.
 function sessionIdentity(state: unknown): string {

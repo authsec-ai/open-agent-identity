@@ -13,13 +13,8 @@ export interface BreadcrumbTail {
   /** The object's own URL; the tail applies to it and to its tabs. */
   path: string;
   label: string;
-  /**
-   * The list the object belongs to, when it is not the URL's parent segment.
-   * `parent` is the segment before it (Discovery); with it, the list replaces
-   * every URL segment before the object, so the trail reads
-   * Discovery › Workloads › name and each part is a link.
-   */
-  list?: { label: string; href: string; parent?: { label: string; href: string } };
+  /** The list the object belongs to, when it is not the URL's parent segment. */
+  list?: { label: string; href: string };
 }
 
 let tail: BreadcrumbTail | null = null;
@@ -43,12 +38,10 @@ export function useBreadcrumbTailValue(): BreadcrumbTail | null {
 export function useBreadcrumbTail(
   path: string | null,
   label: string | null,
-  list?: { label: string; href: string; parent?: { label: string; href: string } },
+  list?: { label: string; href: string },
 ) {
   const listLabel = list?.label;
   const listHref = list?.href;
-  const parentLabel = list?.parent?.label;
-  const parentHref = list?.parent?.href;
   useEffect(() => {
     if (!path || !label) return;
     const mine: BreadcrumbTail = {
@@ -56,12 +49,12 @@ export function useBreadcrumbTail(
       label,
       list:
         listLabel && listHref
-          ? { label: listLabel, href: listHref, parent: parentLabel && parentHref ? { label: parentLabel, href: parentHref } : undefined }
+          ? { label: listLabel, href: listHref }
           : undefined,
     };
     set(mine);
     return () => {
       if (tail === mine) set(null);
     };
-  }, [path, label, listLabel, listHref, parentLabel, parentHref]);
+  }, [path, label, listLabel, listHref]);
 }
