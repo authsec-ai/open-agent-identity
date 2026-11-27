@@ -21,12 +21,9 @@ import {
   useListWorkspaceClientsQuery,
   useRevokeWorkspaceClientMutation,
 } from "@/app/api/mcpClientsApi";
-import { useRegisterAgentMutation } from "@/app/api/agentIdentityApi";
 import type { WorkspaceClientItem } from "@/app/api/mcpClientsApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -40,183 +37,10 @@ import { AdaptiveTable, type AdaptiveColumn } from "@/components/ui/adaptive-tab
 import { ConsoleFilterBar, ConsoleRowActions, EntityCell } from "@/components/console/iam-console";
 import { TableCard } from "@/theme/components/cards";
 import { ConsolePage } from "@/components/console/ConsolePage";
+import { AgentWizard } from "@/features/identity-wizards/AgentWizard";
+import { IDENTITY_DOCS } from "@/features/identity-wizards/docs";
 
-const DOCS_URL = "https://docs.authsec.dev/getting-started";
-
-// ── Register agent wizard ─────────────────────────────────────────────────────
-// Mints a confidential agent client (authorization_code + token-exchange +
-// secret) in THIS workspace. The agent uses it to log a user in and reach MCP
-// servers via the cross-app (ID-JAG) flow.
-function RegisterAgentDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const [name, setName] = useState("");
-  const [redirect, setRedirect] = useState("http://localhost:8126/callback");
-  const [register, { isLoading }] = useRegisterAgentMutation();
-  const [result, setResult] = useState<{
-    client_id: string;
-    client_secret: string;
-    issuer: string;
-  } | null>(null);
-
-  const reset = () => {
-    setName("");
-    setRedirect("http://localhost:8126/callback");
-    setResult(null);
-  };
-
-  const submit = async () => {
-    if (!name.trim()) {
-      toast.error("Name is required.");
-      return;
-    }
-    try {
-      const res = await register({
-        name: name.trim(),
-        redirect_uris: [redirect.trim()],
-      }).unwrap();
-      setResult({
-        client_id: res.client_id,
-        client_secret: res.client_secret,
-        issuer: res.issuer,
-      });
-      toast.success("Agent registered.");
-    } catch (err) {
-      const apiErr = err as { data?: { error?: string } };
-      toast.error(apiErr?.data?.error ?? "Couldn't register agent.");
-    }
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset();
-        onOpenChange(v);
-      }}
-    >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Register AI agent</DialogTitle>
-          <DialogDescription>
-            Creates a confidential client that logs a user in and calls MCP servers on their
-            behalf (cross-app / ID-JAG). Use these values in the agent's config.
-          </DialogDescription>
-        </DialogHeader>
-
-        {result ? (
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-emerald-700">
-              Agent registered — copy the secret now, it won't be shown again.
-            </p>
-            {(
-              [
-                ["AGENT_CLIENT_ID", result.client_id],
-                ["AGENT_CLIENT_SECRET", result.client_secret],
-                ["AUTHSEC_ISSUER", result.issuer],
-              ] as const
-            ).map(([label, val]) => (
-              <div key={label} className="space-y-1">
-                <Label>{label}</Label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">
-                    {val}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(val);
-                      toast.success("Copied");
-                    }}
-                  >
-                    <ClipboardCopy className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <div className="rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2.5 text-[12px] leading-relaxed text-slate-600">
-              <span className="font-medium text-slate-700">What happens next:</span> the agent logs
-              a user in (OIDC), exchanges that for an ID-JAG, then redeems it for a scoped token at
-              each MCP server. Its first call to a server appears as a pending request on that
-              server's <span className="font-medium">Connections</span> tab — approve it there with
-              a role.{" "}
-              <a
-                href={DOCS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-0.5 font-medium text-blue-700 hover:underline"
-              >
-                Agent guide <ExternalLink className="size-3" />
-              </a>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  reset();
-                  onOpenChange(false);
-                }}
-                className="text-white"
-              >
-                Done
-              </Button>
-            </DialogFooter>
-          </div>
-        ) : (
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="ag-name">Name</Label>
-              <Input
-                id="ag-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="research-agent"
-                autoComplete="off"
-                className="h-9"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ag-redirect">Redirect URI</Label>
-              <Input
-                id="ag-redirect"
-                value={redirect}
-                onChange={(e) => setRedirect(e.target.value)}
-                autoComplete="off"
-                className="h-9 font-mono text-xs"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Where the user is sent back after login. Default matches the sample agent's
-                loopback callback.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  reset();
-                  onOpenChange(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void submit()}
-                disabled={!name.trim() || isLoading}
-                className="text-white"
-              >
-                {isLoading ? "Registering…" : "Register agent"}
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+const DOCS_URL = IDENTITY_DOCS.agent.guide;
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "outline" | "secondary" }> =
   {
@@ -454,7 +278,7 @@ export default function AgentsPage() {
         </CardContent>
       </TableCard>
 
-      <RegisterAgentDialog open={registerOpen} onOpenChange={setRegisterOpen} />
+      <AgentWizard open={registerOpen} onOpenChange={setRegisterOpen} />
 
       <RevokeAgentDialog
         agent={revokeTarget}
