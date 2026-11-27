@@ -11,6 +11,8 @@ import {
   useListServiceAccountAccessQuery,
   type WorkspaceServiceAccount,
 } from "@/app/api/agentIdentityApi";
+import { useListWorkspaceClientsQuery } from "@/app/api/mcpClientsApi";
+import { agentClientIds, isAgentBackingAccount } from "@/features/agents/agentBacking";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -454,7 +456,14 @@ function DeleteServiceAccountDialog({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ServiceAccountsPage() {
-  const { data, isLoading, refetch } = useListWorkspaceServiceAccountsQuery();
+  const { data, isLoading: accountsLoading, refetch } = useListWorkspaceServiceAccountsQuery();
+  const { data: clients, isLoading: clientsLoading } = useListWorkspaceClientsQuery();
+  const isLoading = accountsLoading || clientsLoading;
+  // Agents' backing accounts are listed on the Agents page, not here.
+  const accounts = useMemo(() => {
+    const agentIds = agentClientIds(clients);
+    return (data ?? []).filter((sa) => !isAgentBackingAccount(sa, agentIds));
+  }, [data, clients]);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -463,7 +472,7 @@ export default function ServiceAccountsPage() {
   const [deleteSA, setDeleteSA] = useState<WorkspaceServiceAccount | null>(null);
 
   const items = useMemo(() => {
-    let list = applyFilter(data ?? [], activeFilter);
+    let list = applyFilter(accounts, activeFilter);
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((sa) =>
@@ -473,25 +482,21 @@ export default function ServiceAccountsPage() {
       );
     }
     return list;
-  }, [data, activeFilter, query]);
+  }, [accounts, activeFilter, query]);
 
   const filtersWithCounts = useMemo<ConsoleFilterOption[]>(
     () =>
       FILTER_DEFS.map((f) => ({
         ...f,
-        count:
-          f.key === "all"
-            ? (data ?? []).length
-            : applyFilter(data ?? [], f.key as FilterKey).length,
+        count: f.key === "all" ? accounts.length : applyFilter(accounts, f.key as FilterKey).length,
       })),
-    [data],
+    [accounts],
   );
 
   const metrics = useMemo(() => {
-    const list = data ?? [];
-    const active = list.filter((sa) => sa.status === "active").length;
-    return { total: list.length, active, disabled: list.length - active };
-  }, [data]);
+    const active = accounts.filter((sa) => sa.status === "active").length;
+    return { total: accounts.length, active, disabled: accounts.length - active };
+  }, [accounts]);
 
   const columns = useMemo<AdaptiveColumn<WorkspaceServiceAccount>[]>(
     () => [

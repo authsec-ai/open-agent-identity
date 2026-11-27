@@ -22,6 +22,8 @@ import {
   useRevokeWorkspaceClientMutation,
 } from "@/app/api/mcpClientsApi";
 import type { WorkspaceClientItem } from "@/app/api/mcpClientsApi";
+import { useListWorkspaceServiceAccountsQuery } from "@/app/api/agentIdentityApi";
+import { agentClientIds, unconnectedAgents } from "./agentBacking";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +49,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: "default" | "outlin
     approved: { label: "Connected", variant: "default" },
     pending_approval: { label: "Pending approval", variant: "secondary" },
     revoked: { label: "Revoked", variant: "outline" },
+    registered: { label: "Not connected yet", variant: "outline" },
   };
 
 // Revoke an agent's connection to a server. Backed by the connections DELETE
@@ -101,13 +104,16 @@ function RevokeAgentDialog({
 }
 
 export default function AgentsPage() {
-  const { data, isLoading } = useListWorkspaceClientsQuery();
+  const { data, isLoading: clientsLoading } = useListWorkspaceClientsQuery();
+  const { data: accounts, isLoading: accountsLoading } = useListWorkspaceServiceAccountsQuery();
+  const isLoading = clientsLoading || accountsLoading;
   const [query, setQuery] = useState("");
   const [registerOpen, setRegisterOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<WorkspaceClientItem | null>(null);
 
   const agents = useMemo(() => {
-    let items = (data ?? []).filter((c) => c.client_kind === "agent");
+    const connected = (data ?? []).filter((c) => c.client_kind === "agent");
+    let items = [...connected, ...unconnectedAgents(accounts, agentClientIds(data))];
     const q = query.trim().toLowerCase();
     if (q) {
       items = items.filter((c) =>
@@ -117,7 +123,7 @@ export default function AgentsPage() {
       );
     }
     return items;
-  }, [data, query]);
+  }, [data, accounts, query]);
 
   const columns = useMemo<AdaptiveColumn<WorkspaceClientItem>[]>(
     () => [
@@ -217,7 +223,7 @@ export default function AgentsPage() {
   return (
     <ConsolePage
       title="Agents"
-      description="AI agents that act on behalf of a logged-in user. Each is a confidential client that signs a user in, then reaches MCP servers via cross-app delegation (ID-JAG). An agent appears below once it connects to its first server."
+      description="AI agents that act on behalf of a logged-in user. Each is a confidential client that signs a user in, then reaches MCP servers via cross-app delegation (ID-JAG). A new agent shows as not connected until its first call to a server."
       actions={
         <>
           <Button variant="outline" asChild>
@@ -253,7 +259,6 @@ export default function AgentsPage() {
                 <>
                   <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
                     Register an agent to get its client credentials, then point your agent at them.
-                    It shows up here after its first connection to an MCP server.
                   </p>
                   <div className="mt-4 flex justify-center">
                     <Button size="sm" onClick={() => setRegisterOpen(true)} className="text-white">
