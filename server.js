@@ -27,6 +27,10 @@ app.get("/config.js", (req, res) => {
       process.env.VITE_OAUTH_BASE_URL ||
       process.env.VITE_API_URL ||
       "http://localhost:4444",
+    // GitHub "owner/repo" opened by "Open in Codespaces"; the console has a default.
+    ...(process.env.VITE_CODESPACES_STARTER_REPO
+      ? { VITE_CODESPACES_STARTER_REPO: process.env.VITE_CODESPACES_STARTER_REPO }
+      : {}),
   };
   // Everything here is public: /config.js is served to every visitor. Never
   // put a secret in it (UI-005 removed the HubSpot access token).

@@ -27,6 +27,9 @@ import { AccessPicker, type AccessChoice } from "./components/AccessPicker";
 import { CredentialField } from "./components/CredentialField";
 import { IDENTITY_DOCS, type IdentityKind } from "./docs";
 import { KEY_GEN, snippetsFor } from "./snippets";
+import { CODESPACES_KINDS } from "./codespaces";
+import { CodespacesLaunch } from "./components/CodespacesLaunch";
+import { useTutorialMode } from "@/hooks/useTutorialMode";
 
 type MachineKind = Exclude<IdentityKind, "agent">;
 
@@ -94,6 +97,7 @@ export function ServiceAccountWizard({ open, onOpenChange, onCreated }: { open: 
   const [created, setCreated] = useState<Created | null>(null);
   const [savedSecret, setSavedSecret] = useState(false);
   const [test, setTest] = useState<SimulateTokenResponse | null>(null);
+  const tutorialMode = useTutorialMode();
 
   const { data: providersData } = useListWorkloadProvidersQuery(undefined, { skip: !open });
   const spiffeProviders = (providersData?.items ?? []).filter((p) => p.kind === "spiffe" && p.status === "active");
@@ -474,6 +478,27 @@ export function ServiceAccountWizard({ open, onOpenChange, onCreated }: { open: 
             <h3 className="text-[13px] font-semibold text-(--color-text)">Configure your service</h3>
             <CodeTabs snippets={snippets} sdkDocs={docs.sdk} initial={kind === "kubernetes" ? "spire" : "env"} />
           </section>
+
+          {CODESPACES_KINDS.has(kind) ? (
+            <section className="space-y-2">
+              <h3 className="text-[13px] font-semibold text-(--color-text)">Try it now</h3>
+              <CodespacesLaunch
+                kind={kind}
+                context={{
+                  issuer: config.VITE_OAUTH_BASE_URL,
+                  clientId: created.clientId,
+                  mcpUrl: app?.resource_uri,
+                  scopes: grantedRole?.scopes ?? [],
+                  kid,
+                }}
+                disabledReason={
+                  tutorialMode
+                    ? "Demo servers aren't reachable from a codespace. Turn off Tutorial mode and create a real service account to try it."
+                    : undefined
+                }
+              />
+            </section>
+          ) : null}
         </div>
       ) : null}
     </WizardShell>
