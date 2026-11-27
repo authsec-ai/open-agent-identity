@@ -115,8 +115,9 @@ export function VsCodeInstallCard({
       ) : !ready ? (
         <p className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-800">
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          Some readiness checks are failing. VS Code can install the server, but sign-in
-          won't start until the metadata and 401 challenge checks pass.
+          Some readiness checks are failing. VS Code can still install the server, but sign-in or
+          tool calls may fail until they pass. Servers on localhost can't be checked from here, so
+          their checks show as failed even when they work.
         </p>
       ) : null}
 
