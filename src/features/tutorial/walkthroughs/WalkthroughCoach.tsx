@@ -96,7 +96,7 @@ export function WalkthroughCoach() {
 
   if (s.paused) {
     return (
-      <div className="fixed right-6 bottom-6 z-[45] flex items-center gap-2 rounded-full border border-(--color-border-subtle) bg-(color:--color-surface-raised) py-1.5 pr-1.5 pl-4 text-[13px] text-(color:--color-text) shadow-(--shadow-md)">
+      <div data-tutorial-ui className="fixed right-6 bottom-6 z-[45] flex items-center gap-2 rounded-full border border-(--color-border-subtle) bg-(color:--color-surface-raised) py-1.5 pr-1.5 pl-4 text-[13px] text-(color:--color-text) shadow-(--shadow-md)">
         <span className="font-medium">{wt.title}</span>
         <span className="text-(--color-text-muted)">paused at step {s.step + 1}</span>
         <button type="button" onClick={walk.resume} className="flex items-center gap-1 rounded-full bg-(--color-primary) px-3 py-1 font-medium text-white transition-colors hover:bg-(--color-primary-strong)">
@@ -113,7 +113,7 @@ export function WalkthroughCoach() {
 
   if (s.finished) {
     return (
-      <div role="dialog" aria-label={`${wt.title} complete`} className={cn(card, CORNER_CLASS["bottom-right"])}>
+      <div data-tutorial-ui role="dialog" aria-label={`${wt.title} complete`} className={cn(card, CORNER_CLASS["bottom-right"])}>
         <div className="flex items-center gap-2 text-(--color-success)">
           <Sparkles className="size-4" />
           <span className="text-[12px] font-semibold uppercase tracking-wide">Walkthrough complete</span>
@@ -148,7 +148,7 @@ export function WalkthroughCoach() {
     <>
       {step.target ? <Highlight find={step.target} stepKey={stepKey} onRect={setTargetRect} /> : null}
       <div
-        role="dialog"
+        data-tutorial-ui role="dialog"
         aria-label={`${wt.title}, step ${s.step + 1} of ${wt.steps.length}`}
         ref={(el) => {
           const h = el?.offsetHeight ?? 0;

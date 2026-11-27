@@ -8,6 +8,7 @@ import { useTutorialLiveFeed } from "./liveFeed";
 import { walk } from "./walkthroughs/model";
 import { WalkthroughCoach } from "./walkthroughs/WalkthroughCoach";
 import { WalkthroughMenu } from "./walkthroughs/WalkthroughMenu";
+import { HoverExplainLayer } from "./hover/HoverExplainLayer";
 
 const bannerButton =
   "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-medium transition-colors duration-150 hover:bg-(--color-primary-soft-strong)";
@@ -32,6 +33,7 @@ export function TutorialBanner() {
     <>
       <div
         role="status"
+        data-tutorial-ui
         className="flex items-center gap-3 border-b border-(--color-primary-soft-strong) bg-(--color-primary-soft) px-4 py-2 text-[13px] text-(--color-primary-text) lg:px-6"
       >
         <GraduationCap className="size-4 shrink-0" />
@@ -39,8 +41,8 @@ export function TutorialBanner() {
           <span className="font-semibold">Tutorial mode</span>
           <span className="hidden sm:inline">
             {" "}
-            · You're exploring Northwind AI, a demo workspace. Everything here is sample data, and nothing you do
-            changes your real workspace.
+            · You're exploring Northwind AI, a demo workspace with sample data. Hover over anything to see what it
+            means; nothing you do changes your real workspace.
           </span>
         </p>
         <WalkthroughMenu className={bannerButton} />
@@ -54,6 +56,7 @@ export function TutorialBanner() {
         </button>
       </div>
       <WalkthroughCoach />
+      <HoverExplainLayer />
     </>
   );
 }
