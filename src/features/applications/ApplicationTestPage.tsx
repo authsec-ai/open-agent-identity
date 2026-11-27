@@ -21,6 +21,7 @@ import {
 
 import { useApplicationContext } from "./useApplicationContext";
 import { Surface } from "./components/ApplicationConsole";
+import { VsCodeInstallCard } from "./components/VsCodeInstallCard";
 
 type RegistrationMode = "dcr" | "prereg" | "cimd";
 
@@ -670,6 +671,13 @@ export default function ApplicationTestPage() {
       </div>
 
       {browserResult && <BrowserResultCard result={browserResult} />}
+
+      <VsCodeInstallCard
+        applicationName={application.name}
+        resourceUri={application.resource_uri}
+        ready={allReady}
+        tutorialMode={tutorialMode}
+      />
     </div>
   );
 }
