@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ModeToggle } from "../mode-toggle";
+import { TutorialModeToggle } from "../tutorial-mode-toggle";
 import { Monitor } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -119,6 +120,8 @@ export function AppHeader({ onRightSidebarToggle: _onRightSidebarToggle, isRight
           </Popover> */}
 
           {/* Divides search from the theme toggle; with no search there is nothing to divide. */}
+
+          <TutorialModeToggle />
 
           {/* Theme toggle */}
           <ModeToggle />

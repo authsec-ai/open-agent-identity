@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { Explain } from "@/features/tutorial/explain/Explain";
 
 export type MetricTone = "neutral" | "primary" | "success" | "warning" | "danger";
 
@@ -15,6 +16,8 @@ export interface MetricStripItemDef {
   active?: boolean;
   /** What clicking it does, for a tile that filters. */
   title?: string;
+  /** Tutorial explanation id for what this number means. */
+  explain?: string;
 }
 
 const DOT_TONE_CLASS: Record<MetricTone, string> = {
@@ -25,7 +28,18 @@ const DOT_TONE_CLASS: Record<MetricTone, string> = {
   danger: "bg-(--color-danger)",
 };
 
-function MetricStripSegment({ label, value, tone = "neutral", onClick, active, title }: Omit<MetricStripItemDef, "key">) {
+function MetricStripSegment({ explain, ...item }: Omit<MetricStripItemDef, "key">) {
+  if (!explain) return <MetricStripButton {...item} />;
+  // The explain button sits beside the tile's button, not inside it.
+  return (
+    <div className="relative flex flex-1">
+      <MetricStripButton {...item} />
+      <Explain id={explain} className="absolute top-2 right-2" />
+    </div>
+  );
+}
+
+function MetricStripButton({ label, value, tone = "neutral", onClick, active, title }: Omit<MetricStripItemDef, "key" | "explain">) {
   return (
     // Value over label, not beside it. Side by side at 22px and 14px they read
     // as one sentence of roughly equal weight, so four tiles looked alike and

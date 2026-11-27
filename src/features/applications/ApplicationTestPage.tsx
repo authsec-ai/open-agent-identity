@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 
 import { Button } from "@/components/ui/button";
 import { HelpTooltip } from "@/components/ui/tooltip";
+import { useTutorialMode } from "@/hooks/useTutorialMode";
 import {
   useValidateResourceServerMutation,
   type ResourceServerValidationCheck,
@@ -181,6 +182,7 @@ export default function ApplicationTestPage() {
     },
   );
   const [callbackBusy, setCallbackBusy] = useState(false);
+  const tutorialMode = useTutorialMode();
   const [validate, { data: validation, isLoading, error }] =
     useValidateResourceServerMutation();
   useEffect(() => {
@@ -359,6 +361,20 @@ export default function ApplicationTestPage() {
   const apiError = error as { data?: { error?: string } } | undefined;
 
   const handleRunTestLogin = async () => {
+    if (tutorialMode) {
+      // The live test registers a real OAuth client and leaves the console;
+      // the demo application has no server behind it, so the outcome is shown instead.
+      setBrowserResult({
+        status: "success",
+        title: "Browser login completed (simulated)",
+        detail: `In Tutorial mode no real client is registered. A real run registers a client, signs you in at the AuthSec login page, and exchanges the code for a token scoped to ${application.name}.`,
+        happenedAt: new Date().toISOString(),
+        scope: "openid profile email",
+        tokenType: "bearer",
+      });
+      toast.success("Simulated browser login completed.");
+      return;
+    }
     if (registrationMode !== "dcr") {
       toast.error(
         "Real browser test login is wired only for Dynamic registration right now.",

@@ -216,9 +216,10 @@ export function DashboardPage() {
       <MetricStrip
         aria-label="Hero metrics"
         items={[
-          { key: "apps", label: "applications", value: total, tone: "primary", onClick: () => navigate("/applications") },
+          { key: "apps", label: "applications", value: total, tone: "primary", onClick: () => navigate("/applications"), explain: "metric.applications" },
           {
             key: "healthy",
+            explain: "metric.healthy",
             label: "healthy",
             value: healthy,
             tone: total > 0 && healthy === total ? "success" : "neutral",
@@ -226,14 +227,16 @@ export function DashboardPage() {
           },
           {
             key: "attention",
+            explain: "metric.attention",
             label: "need a decision",
             value: attention,
             tone: attention > 0 ? "warning" : "neutral",
             onClick: () => navigate("/applications"),
           },
-          { key: "end-users", label: "end users", value: totalEndUsers, tone: "primary", onClick: () => navigate("/end-users") },
+          { key: "end-users", label: "end users", value: totalEndUsers, tone: "primary", onClick: () => navigate("/end-users"), explain: "metric.endUsers" },
           {
             key: "idps",
+            explain: "metric.idps",
             label: "identity providers",
             value: idpsConfigured,
             tone: "neutral",

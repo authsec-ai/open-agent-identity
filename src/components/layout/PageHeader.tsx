@@ -1,6 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { PageExplain } from "@/features/tutorial/explain/Explain";
 
 interface PageHeaderProps {
   title: string;
@@ -51,6 +52,7 @@ export function PageHeader({
                 >
                   {title}
                 </h1>
+                <PageExplain />
                 {badge}
               </div>
               {description && (

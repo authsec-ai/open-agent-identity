@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useGuidedTour } from './useGuidedTour';
+import { useTutorialMode } from '@/hooks/useTutorialMode';
 import type { TourConfig } from '../types';
 
 interface UseTourStepOptions {
@@ -48,10 +49,11 @@ export function useTourStep({
   autoStartDelay = 500,
 }: UseTourStepOptions) {
   const { startTour, shouldShowTour, isActive, activeTour } = useGuidedTour();
+  const tutorialMode = useTutorialMode();
 
   useEffect(() => {
-    // Don't auto-start if disabled
-    if (!autoStart) {
+    // Tutorial mode runs its own walkthroughs; these one-step tours would talk over them.
+    if (!autoStart || tutorialMode) {
       return;
     }
 
@@ -82,6 +84,7 @@ export function useTourStep({
     tourConfig.tourId,
     tourConfig.autoStart,
     autoStart,
+    tutorialMode,
     autoStartDelay,
     startTour,
     shouldShowTour,

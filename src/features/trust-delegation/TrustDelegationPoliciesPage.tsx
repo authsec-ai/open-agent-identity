@@ -36,6 +36,7 @@ import {
 } from "@/app/api/trustDelegationApi";
 import type { DelegationPolicyUI } from "./types";
 import { getTrustDelegationErrorMessage } from "./utils";
+import { PageExplain } from "@/features/tutorial/explain/Explain";
 
 const PAGE_SIZE = 10;
 
@@ -135,7 +136,10 @@ export function TrustDelegationPoliciesPage() {
       <div className="console-page">
         <div className="section-header">
           <div>
-            <h1 className="sh-title">Trust Delegation</h1>
+            <h1 className="sh-title flex items-center gap-1.5">
+              Trust Delegation
+              <PageExplain />
+            </h1>
             <p className="sh-desc">
               Saved trust delegation configurations for agents, workloads, and user-linked service
               identities.
