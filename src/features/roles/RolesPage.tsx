@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ApplicationRoleWizard } from "./components/ApplicationRoleWizard";
 import { ApplicationRoleDrawer } from "./components/ApplicationRoleDrawer";
+import { PageExplain } from "@/features/tutorial/explain/Explain";
 
 type Risk = "low" | "medium" | "high" | "critical";
 const RISK_ORDER: Record<Risk, number> = { low: 0, medium: 1, high: 2, critical: 3 };
@@ -91,7 +92,10 @@ export function RolesPage() {
       <div className="console-page">
         <div className="section-header">
           <div>
-            <h1 className="sh-title">Roles</h1>
+            <h1 className="sh-title flex items-center gap-1.5">
+              Roles
+              <PageExplain />
+            </h1>
             <p className="sh-desc">
               Bundle scopes into named roles you can assign. Application roles grant an app's scopes
               to its end users.

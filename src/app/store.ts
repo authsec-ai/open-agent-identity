@@ -24,9 +24,9 @@ import { oidcApi } from "./api/oidcApi"; // OIDC/OAuth flows
 import { deviceApi } from "./api/deviceApi"; // Device management (TOTP/CIBA)
 
 // Import regular slices
-import uiSlice, { setTutorialMode } from "./slices/uiSlice";
+import uiSlice, { setTutorialLevel, setTutorialMode } from "./slices/uiSlice";
 import { resetDemoDb } from "../features/tutorial/demo/state";
-import { readStoredTutorialMode } from "../utils/tutorialModeStorage";
+import { readStoredTutorialLevel, readStoredTutorialMode } from "../utils/tutorialModeStorage";
 
 // Import auth slices from new location
 import authSlice, { logout } from "../auth/slices/authSlice";
@@ -68,6 +68,7 @@ sessionListener.startListening({
     resetSessionScopedState(api.dispatch, { keepSignInFlow: signingIn });
     // Tutorial mode is a per-person choice: the next session reads its own.
     api.dispatch(setTutorialMode(readStoredTutorialMode()));
+    api.dispatch(setTutorialLevel(readStoredTutorialLevel()));
   },
 });
 

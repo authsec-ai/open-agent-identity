@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PageExplain } from "@/features/tutorial/explain/Explain";
 
 /**
  * `ConsolePage` — the single canonical shell for every workspace console page.
@@ -54,7 +55,10 @@ export function ConsolePage({
       <div className={variant === "object" ? "console-page console-page--object" : "console-page"}>
         <header className="section-header">
           <div className={variant === "object" ? "sh-main min-w-0" : "min-w-0"}>
-            <h1 className="sh-title">{title}</h1>
+            <h1 className="sh-title flex items-center gap-1.5">
+              {title}
+              <PageExplain />
+            </h1>
             {description ? <p className="sh-desc">{description}</p> : null}
           </div>
           {actions ? (

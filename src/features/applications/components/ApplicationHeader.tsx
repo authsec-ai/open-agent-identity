@@ -11,6 +11,7 @@ import { ArrowRight, Check, CheckCircle2, Copy } from "lucide-react";
 import type { Application, Readiness, ReadinessState } from "../types";
 import { isLaunched } from "../lib/computeReadiness";
 import { computeNextBestAction, nextActionHref } from "../lib/computeNextBestAction";
+import { PageExplain } from "@/features/tutorial/explain/Explain";
 
 export interface ApplicationHeaderProps {
   application: Pick<
@@ -56,6 +57,7 @@ export function ApplicationHeader({
           <div className="dh-titlerow">
             <h1 className="dh-title">{application.name}</h1>
             <span className="badge badge--type">{typeLabel}</span>
+            <PageExplain />
           </div>
           {application.resource_uri && (
             <button className={`dh-uri${copied ? " copied" : ""}`} title="Copy resource URI" onClick={copyUri}>

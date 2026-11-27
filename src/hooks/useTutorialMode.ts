@@ -1,7 +1,20 @@
 import { useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { setTutorialMode } from "@/app/slices/uiSlice";
-import { storeTutorialMode } from "@/utils/tutorialModeStorage";
+import { setTutorialLevel, setTutorialMode } from "@/app/slices/uiSlice";
+import { storeTutorialLevel, storeTutorialMode, type TutorialLevel } from "@/utils/tutorialModeStorage";
+
+export function useTutorialLevel(): [TutorialLevel, (level: TutorialLevel) => void] {
+  const dispatch = useAppDispatch();
+  const level = useAppSelector((state) => state.ui.tutorialLevel);
+  const set = useCallback(
+    (next: TutorialLevel) => {
+      dispatch(setTutorialLevel(next));
+      storeTutorialLevel(next);
+    },
+    [dispatch],
+  );
+  return [level, set];
+}
 
 export function useTutorialMode(): boolean {
   return useAppSelector((state) => state.ui.tutorialMode);
