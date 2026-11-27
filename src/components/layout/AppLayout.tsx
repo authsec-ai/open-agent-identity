@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from "react";
 import { PageLoadingSkeleton } from "./PageLoadingSkeleton";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
+import { TutorialBanner } from "@/features/tutorial/TutorialBanner";
 import { AppRightSidebar } from "./AppRightSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ResponsiveSidebarController } from "./ResponsiveSidebarController";
@@ -87,6 +88,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               onRightSidebarToggle={handleRightSidebarToggle}
               isRightSidebarOpen={isRightSidebarOpen}
             />
+            <TutorialBanner />
             <div className="flex-1 overflow-hidden">
               <div
                 className="h-full w-full overflow-y-auto scrollbar-hide"

@@ -1,5 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import { readStoredTutorialMode } from "@/utils/tutorialModeStorage";
 
 interface UIState {
   sidebarCollapsed: boolean;
@@ -7,6 +8,7 @@ interface UIState {
   loading: boolean;
   error: string | null;
   theme: "light" | "dark";
+  tutorialMode: boolean;
 }
 
 const initialState: UIState = {
@@ -15,6 +17,7 @@ const initialState: UIState = {
   loading: false,
   error: null,
   theme: "dark",
+  tutorialMode: readStoredTutorialMode(),
 };
 
 /**
@@ -49,6 +52,9 @@ const uiSlice = createSlice({
     toggleTheme: (state) => {
       state.theme = state.theme === "light" ? "dark" : "light";
     },
+    setTutorialMode: (state, action: PayloadAction<boolean>) => {
+      state.tutorialMode = action.payload;
+    },
   },
 });
 
@@ -61,6 +67,7 @@ export const {
   clearError,
   setTheme,
   toggleTheme,
+  setTutorialMode,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

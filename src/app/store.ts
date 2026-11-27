@@ -24,7 +24,9 @@ import { oidcApi } from "./api/oidcApi"; // OIDC/OAuth flows
 import { deviceApi } from "./api/deviceApi"; // Device management (TOTP/CIBA)
 
 // Import regular slices
-import uiSlice from "./slices/uiSlice";
+import uiSlice, { setTutorialMode } from "./slices/uiSlice";
+import { resetDemoDb } from "../features/tutorial/demo/state";
+import { readStoredTutorialMode } from "../utils/tutorialModeStorage";
 
 // Import auth slices from new location
 import authSlice, { logout } from "../auth/slices/authSlice";
@@ -64,6 +66,22 @@ sessionListener.startListening({
     // session that ends or changes takes the flow state with it.
     const signingIn = !logout.match(action) && sessionIdentity(api.getOriginalState()) === "signed-out";
     resetSessionScopedState(api.dispatch, { keepSignInFlow: signingIn });
+    // Tutorial mode is a per-person choice: the next session reads its own.
+    api.dispatch(setTutorialMode(readStoredTutorialMode()));
+  },
+});
+
+// Switching Tutorial mode swaps the data source under every page, so nothing
+// cached from one side may be shown on the other. Turning it on also rebuilds
+// the demo workspace, so each tutorial session starts from the same dataset.
+const tutorialListener = createListenerMiddleware();
+tutorialListener.startListening({
+  predicate: (_action, current, previous) =>
+    (current as { ui: { tutorialMode: boolean } }).ui.tutorialMode !==
+    (previous as { ui: { tutorialMode: boolean } }).ui.tutorialMode,
+  effect: (_action, api) => {
+    if ((api.getState() as { ui: { tutorialMode: boolean } }).ui.tutorialMode) resetDemoDb();
+    api.dispatch(baseApi.util.resetApiState());
   },
 });
 
@@ -110,7 +128,7 @@ export const store = configureStore({
         ],
       },
     })
-      .prepend(sessionListener.middleware)
+      .prepend(sessionListener.middleware, tutorialListener.middleware)
       .concat(
         // Add RTK Query middleware
         baseApi.middleware, // Contains authApi, webauthnApi, and externalServiceApi endpoints

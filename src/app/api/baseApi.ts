@@ -3,6 +3,7 @@ import config from '../../config';
 import { withLoginTicket } from "../../auth/loginTicket";
 import { withUnauthorizedHandler } from "../../auth/unauthorized";
 import { SessionManager } from "../../utils/sessionManager";
+import { withTutorialMode } from "../../features/tutorial/withTutorialMode";
 
 // Define base types for the API
 export interface ApiResponse<T> {
@@ -70,7 +71,7 @@ export const baseApi = createApi({
   reducerPath: "baseApi",
   // Sign-in steps carry the login ticket from the first-factor response; a
   // 401 on a signed-in request ends the session (UI-011).
-  baseQuery: withLoginTicket(withUnauthorizedHandler(baseQuery)),
+  baseQuery: withLoginTicket(withUnauthorizedHandler(withTutorialMode(baseQuery))),
   tagTypes: [
     "Auth",
     "AdminAuth",
