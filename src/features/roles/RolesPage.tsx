@@ -30,6 +30,7 @@ import {
 import { ApplicationRoleWizard } from "./components/ApplicationRoleWizard";
 import { ApplicationRoleDrawer } from "./components/ApplicationRoleDrawer";
 import { PageExplain } from "@/features/tutorial/explain/Explain";
+import { PageDocsLink } from "@/components/console/PageDocsLink";
 
 type Risk = "low" | "medium" | "high" | "critical";
 const RISK_ORDER: Record<Risk, number> = { low: 0, medium: 1, high: 2, critical: 3 };
@@ -101,9 +102,12 @@ export function RolesPage() {
               to its end users.
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => setWizardOpen(true)}>
-            <Plus className="icon-sm" /> Create role
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <PageDocsLink />
+            <button className="btn btn-primary" onClick={() => setWizardOpen(true)}>
+              <Plus className="icon-sm" /> Create role
+            </button>
+          </div>
         </div>
 
         <div className="roles-toolbar">

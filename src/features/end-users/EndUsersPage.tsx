@@ -46,6 +46,7 @@ import {
 import { toast } from "@/lib/toast";
 import { resolveWorkspaceId } from "@/utils/workspace";
 import { cn } from "@/lib/utils";
+import { DOCS } from "@/lib/docs";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -683,7 +684,7 @@ export default function EndUsersPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.open("https://docs.authsec.dev/getting-started", "_blank")}
+                    onClick={() => window.open(DOCS.userTaxonomy, "_blank", "noopener,noreferrer")}
                   >
                     View docs
                   </Button>

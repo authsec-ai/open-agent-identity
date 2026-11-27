@@ -12,6 +12,7 @@ import type { Application, Readiness, ReadinessState } from "../types";
 import { isLaunched } from "../lib/computeReadiness";
 import { computeNextBestAction, nextActionHref } from "../lib/computeNextBestAction";
 import { PageExplain } from "@/features/tutorial/explain/Explain";
+import { PageDocsLink } from "@/components/console/PageDocsLink";
 
 export interface ApplicationHeaderProps {
   application: Pick<
@@ -87,6 +88,7 @@ export function ApplicationHeader({
               Tools reviewed
             </span>
           )}
+          <PageDocsLink />
           {next && (
             <button className="btn btn-primary" onClick={() => navigate(nextActionHref(application.id, next))}>
               {next.primary} <ArrowRight className="icon-sm" />

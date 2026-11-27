@@ -668,6 +668,33 @@ demoRoute("POST", "/authsec/applications/:id/machine-access/workload", ({ db, pa
   }),
 );
 
+demoRoute("POST", "/authsec/applications/:id/access/federated-workload", ({ db, params, body, path }) =>
+  withApp(db, params.id, (app) => {
+    const provider = db.workloadProviders.find((p) => p.id === body.provider_id);
+    if (!provider) return badRequest("Choose a workload identity provider this workspace trusts");
+    const spiffeId = String(body.external_spiffe_id ?? "");
+    if (!spiffeId.startsWith(`spiffe://${provider.trust_domain}/`)) return badRequest(`The SPIFFE ID must be in the ${provider.trust_domain} trust domain`);
+    const res = grantServiceAccount(db, app, body, path);
+    if ("error" in res) return res.error!;
+    res.sa.spiffe_id = spiffeId;
+    return created({
+      workload_id: `wl-${res.sa.id.slice(0, 8)}`,
+      spiffe_id: spiffeId,
+      service_account_id: res.sa.id,
+      service_account_name: res.sa.name,
+      client_id: res.sa.oauth_client_id,
+      role_id: res.role.id,
+      role_name: res.role.name,
+      assignment_id: res.assignmentId,
+      status: "active",
+      platform: "kubernetes",
+      selectors: {},
+      install_snippet: "",
+      token_endpoint: `${ISSUER}/oauth2/token`,
+    });
+  }),
+);
+
 demoRoute("POST", "/authsec/applications/:id/machine-access/api-credential", ({ db, params, body, path }) =>
   withApp(db, params.id, (app) => {
     const res = grantServiceAccount(db, app, body, path);

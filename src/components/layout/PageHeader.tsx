@@ -2,6 +2,7 @@ import React from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { PageExplain } from "@/features/tutorial/explain/Explain";
+import { PageDocsLink } from "@/components/console/PageDocsLink";
 
 interface PageHeaderProps {
   title: string;
@@ -63,11 +64,10 @@ export function PageHeader({
             </div>
           </div>
           {/* Inline actions on the right */}
-          {actions && actionsPosition === "inline" && (
-            <div data-slot="page-header-actions" className="shrink-0">
-              {actions}
-            </div>
-          )}
+          <div data-slot="page-header-actions" className="flex shrink-0 items-center gap-2">
+            <PageDocsLink />
+            {actions && actionsPosition === "inline" ? actions : null}
+          </div>
         </div>
         {/* Actions row - full width below title (for tabs, etc.) */}
         {actions && actionsPosition === "below" && (

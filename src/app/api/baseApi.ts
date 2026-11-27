@@ -131,6 +131,7 @@ export const baseApi = createApi({
     "Workload",
     "Entry",
     "Agent",
+    "ServiceAccount",
     "DashboardEndUser",
     "DashboardStats",
     "Dashboard",

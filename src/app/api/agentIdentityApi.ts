@@ -367,6 +367,7 @@ const agentIdentityApi = baseApi.injectEndpoints({
     // GET /authsec/uflow/admin/service-accounts — workspace-level workload list.
     listWorkspaceServiceAccounts: builder.query<WorkspaceServiceAccount[], void>({
       query: () => `/authsec/uflow/admin/service-accounts`,
+      providesTags: ["ServiceAccount"],
     }),
 
     // POST /authsec/uflow/admin/service-accounts — create a workspace-level
@@ -376,6 +377,7 @@ const agentIdentityApi = baseApi.injectEndpoints({
       { name: string; description?: string; owner_email: string; owner_team?: string }
     >({
       query: (body) => ({ url: `/authsec/uflow/admin/service-accounts`, method: "POST", body }),
+      invalidatesTags: ["ServiceAccount"],
     }),
 
     // PUT /authsec/uflow/admin/service-accounts/:sa_id — rename / re-describe.
@@ -388,6 +390,7 @@ const agentIdentityApi = baseApi.injectEndpoints({
         method: "PUT",
         body,
       }),
+      invalidatesTags: ["ServiceAccount"],
     }),
 
     // DELETE /authsec/uflow/admin/service-accounts/:sa_id — remove the service account.
@@ -396,6 +399,7 @@ const agentIdentityApi = baseApi.injectEndpoints({
         url: `/authsec/uflow/admin/service-accounts/${saId}`,
         method: "DELETE",
       }),
+      invalidatesTags: ["ServiceAccount"],
     }),
 
     // POST /authsec/agents — mint a confidential A2A agent client
@@ -405,6 +409,8 @@ const agentIdentityApi = baseApi.injectEndpoints({
       { name: string; redirect_uris?: string[] }
     >({
       query: (body) => ({ url: `/authsec/agents`, method: "POST", body }),
+      // Registering also creates the agent's backing service account.
+      invalidatesTags: ["ServiceAccount", { type: "MCPClient", id: "LIST" }],
     }),
 
     // POST /authsec/uflow/admin/service-accounts/:sa_id/credentials — provision a
@@ -418,6 +424,7 @@ const agentIdentityApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      invalidatesTags: ["ServiceAccount"],
     }),
 
     // POST /authsec/uflow/admin/service-accounts/:sa_id/credentials/rotate —
