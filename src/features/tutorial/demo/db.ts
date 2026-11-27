@@ -9,6 +9,8 @@ import type { RawExternalService } from "@/app/api/externalServiceApi";
 import type { Permission } from "@/app/api/permissionsApi";
 import type { TrustedIssuer } from "@/app/api/trustedIssuersApi";
 import type { WorkloadIdentityProvider } from "@/app/api/workloadProvidersApi";
+import type { CustomDomain } from "@/app/api/domainApi";
+import type { DelegationPolicyRecord } from "@/app/api/trustDelegationApi";
 import {
   APPS,
   END_USERS,
@@ -18,10 +20,63 @@ import {
   USER_GRANTS,
   SA_GRANTS,
   DEMO_DOMAIN,
+  TOOLS,
+  type ToolDef,
 } from "./seedData";
 import { buildActivity } from "./activity";
 
 export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export interface DemoTool {
+  id: string;
+  application_id: string;
+  name: string;
+  title: string;
+  description: string;
+  /** Admin-applied mappings: the ones the gate enforces. */
+  scope_ids: string[];
+  /** SDK suggestions not yet applied (scope strings). */
+  suggested: string[];
+  is_public: boolean;
+  inventory_source: "sdk_manifest" | "mcp_scan" | "manual";
+  created_at: string;
+}
+
+export interface DemoConsent {
+  id: string;
+  user_id: string;
+  client_id: string;
+  client_name: string;
+  resource_server_id: string;
+  resource_name: string;
+  granted_scopes: string[];
+  expires_at: string;
+  revoked_at?: string;
+  created_at: string;
+}
+
+export interface DemoDrift {
+  id: string;
+  rs_id: string;
+  event_type: string;
+  event_payload: Record<string, unknown>;
+  occurred_at: string;
+  occurred_by: string;
+}
+
+export interface DemoAccessRequest {
+  request_id: string;
+  application_id: string;
+  request_type: string;
+  status: "pending" | "approved" | "denied";
+  requester_client_id: string;
+  requester_name: string;
+  acting_user?: { id: string; email: string; name?: string };
+  source_workspace?: string;
+  requested_scopes: string[];
+  created_at: string;
+  expires_at?: string;
+}
 
 export interface DemoScope {
   id: string;
@@ -144,6 +199,12 @@ export interface DemoDb {
   permissions: Permission[];
   trustedIssuers: TrustedIssuer[];
   workloadProviders: WorkloadIdentityProvider[];
+  tools: DemoTool[];
+  domains: CustomDomain[];
+  delegationPolicies: DelegationPolicyRecord[];
+  consents: DemoConsent[];
+  drift: DemoDrift[];
+  requests: DemoAccessRequest[];
   authLogs: AuthLogRow[];
   auditLogs: AuditLogRow[];
   m2mLogs: M2MLogRow[];
@@ -170,6 +231,12 @@ export const KIND = {
   sync: 11,
   externalService: 12,
   permission: 13,
+  tool: 14,
+  consent: 15,
+  drift: 16,
+  request: 17,
+  domain: 18,
+  delegation: 19,
   created: 0xf0,
 } as const;
 
@@ -281,7 +348,7 @@ export function createSeed({ workspaceId, actorEmail, now }: { workspaceId: stri
       last_scan_completed_at: at(app.lastScanHoursAgo * HOUR),
       last_validated_at: app.state === "ready" ? at(app.lastScanHoursAgo * HOUR) : undefined,
       last_validation_status: app.state === "ready" ? "passed" : app.state === "scan_failed" ? "failed" : undefined,
-      tools_count: app.tools,
+      tools_count: 0,
       scopes_count: app.scopes.length,
       roles_count: app.roles.length,
       state: app.state,
@@ -508,7 +575,144 @@ export function createSeed({ workspaceId, actorEmail, now }: { workspaceId: stri
     },
   ];
 
+  const tools: DemoTool[] = [];
+  let toolN = 0;
+  for (const app of APPS) {
+    const appId = appIdByKey.get(app.key)!;
+    for (const def of TOOLS[app.key] ?? []) {
+      toolN += 1;
+      tools.push(toolFromDef(scopes, appId, def, demoId(KIND.tool, toolN), at((def.addedDaysAgo ?? app.createdDaysAgo - 1) * DAY)));
+    }
+  }
+
+  // A user who holds a role on an application has consented to the client they use with it.
+  const consentClient: Record<string, string> = {
+    github: "Claude Desktop",
+    crm: "Claude Desktop",
+    payments: "Cursor",
+    kb: "VS Code Copilot Chat",
+    jira: "Claude Desktop",
+  };
+  const consents: DemoConsent[] = [];
+  let consentN = 0;
+  for (const [userIdx, appKey, roleName, daysAgo] of USER_GRANTS) {
+    const user = endUsers[userIdx];
+    const appId = appIdByKey.get(appKey)!;
+    const client = clients.find((c) => c.client_name === consentClient[appKey])!;
+    const role = roles.find((r) => r.application_id === appId && r.name === roleName)!;
+    consentN += 1;
+    consents.push({
+      id: demoId(KIND.consent, consentN),
+      user_id: user.id,
+      client_id: client.client_id,
+      client_name: client.client_name,
+      resource_server_id: appId,
+      resource_name: APPS.find((a) => a.key === appKey)!.name,
+      granted_scopes: role.scope_ids.map((id) => scopes.find((s) => s.id === id)!.scope_string),
+      expires_at: new Date(now + (90 - Math.min(daysAgo, 80)) * DAY).toISOString(),
+      revoked_at: user.status === "suspended" ? at(5 * DAY) : undefined,
+      created_at: at(Math.max(daysAgo - 1, 0.5) * DAY),
+    });
+  }
+
+  const github = appIdByKey.get("github")!;
+  const payments = appIdByKey.get("payments")!;
+  const crm = appIdByKey.get("crm")!;
+  const drift: DemoDrift[] = [
+    {
+      id: demoId(KIND.drift, 1),
+      rs_id: github,
+      event_type: "tool_added",
+      event_payload: { tool: "delete_repository", suggested_scope: "admin:org", note: "New tool is denied until an admin maps it" },
+      occurred_at: at(1 * DAY),
+      occurred_by: "sdk_manifest",
+    },
+    {
+      id: demoId(KIND.drift, 2),
+      rs_id: payments,
+      event_type: "scope_risk_changed",
+      event_payload: { scope: "refunds:issue", from: "medium", to: "high" },
+      occurred_at: at(3 * DAY),
+      occurred_by: "priya.raman@northwind.example",
+    },
+  ];
+
+  const byClientName = (name: string) => clients.find((c) => c.client_name === name)!;
+  const requests: DemoAccessRequest[] = [
+    {
+      request_id: demoId(KIND.request, 1),
+      application_id: payments,
+      request_type: "role_request",
+      status: "pending",
+      requester_client_id: byClientName("Release Bot").client_id,
+      requester_name: "Release Bot",
+      requested_scopes: ["ledger:read", "payouts:approve"],
+      created_at: at(20 * HOUR),
+      expires_at: new Date(now + 6 * DAY).toISOString(),
+    },
+    {
+      request_id: demoId(KIND.request, 2),
+      application_id: crm,
+      request_type: "cross_app",
+      status: "pending",
+      requester_client_id: byClientName("Sales Research Agent").client_id,
+      requester_name: "Sales Research Agent",
+      acting_user: { id: endUsers[16].id, email: endUsers[16].email, name: endUsers[16].name },
+      source_workspace: "brightpath-consulting",
+      requested_scopes: ["customers:read"],
+      created_at: at(22 * HOUR),
+      expires_at: new Date(now + 6 * DAY).toISOString(),
+    },
+  ];
+
+  const domains: CustomDomain[] = [
+    { domain: "northwind.authsec.example", kind: "platform", primary: false, verified: true, days: 140 },
+    { domain: "login.northwind.example", kind: "custom", primary: true, verified: true, days: 60 },
+    { domain: "auth.northwind-labs.example", kind: "custom", primary: false, verified: false, days: 1 },
+  ].map((d, i) => ({
+    id: demoId(KIND.domain, i + 1),
+    workspace_id: workspaceId,
+    domain: d.domain,
+    kind: d.kind as CustomDomain["kind"],
+    is_primary: d.primary,
+    is_verified: d.verified,
+    verification_method: "dns_txt",
+    verification_token: `authsec-verify-${(i + 1) * 7391}`,
+    verification_txt_name: `_authsec-challenge.${d.domain}`,
+    verification_txt_value: `authsec-verify-${(i + 1) * 7391}`,
+    verified_at: d.verified ? at((d.days - 1) * DAY) : null,
+    created_at: at(d.days * DAY),
+    updated_at: at(Math.min(d.days, 10) * DAY),
+  }));
+
+  const delegationPolicies: DelegationPolicyRecord[] = [
+    { role_name: "release-manager", agent: "mcp-agent", perms: ["repo:read", "pull_requests:write"], ttl: 3600, enabled: true, client: "Release Bot" },
+    { role_name: "support-agent", agent: "mcp-agent", perms: ["customers:read"], ttl: 900, enabled: true, client: "Support Copilot" },
+    { role_name: "billing-operator", agent: "autonomous-workload", perms: ["ledger:read", "invoices:create"], ttl: 1800, enabled: true, client: "Finance Reconciler" },
+    { role_name: "data-steward", agent: "user-service-account", perms: ["customers:export"], ttl: 600, enabled: false, client: "Nightly ETL" },
+  ].map((p, i) => {
+    const client = clients.find((c) => c.client_name === p.client)!;
+    return {
+      id: demoId(KIND.delegation, i + 1),
+      workspace_id: workspaceId,
+      role_name: p.role_name,
+      agent_type: p.agent,
+      allowed_permissions: p.perms,
+      max_ttl_seconds: p.ttl,
+      enabled: p.enabled,
+      client_id: client.client_id,
+      client_label: client.client_name,
+      created_by: admins[0].email,
+    };
+  });
+
   const db: DemoDb = {
+    domains,
+    delegationPolicies,
+    tools,
+    consents,
+    drift,
+    requests,
     trustedIssuers,
     workloadProviders,
     workspaceId,
@@ -544,10 +748,28 @@ export function refreshCounts(db: DemoDb): void {
     const appAssignments = db.assignments.filter((a) => a.application_id === app.id && a.status === "active");
     app.roles_count = appRoles.length;
     app.scopes_count = db.scopes.filter((s) => s.application_id === app.id).length;
+    app.tools_count = db.tools.filter((t) => t.application_id === app.id).length;
+    app.scopes_supported = db.scopes.filter((s) => s.application_id === app.id).map((s) => s.scope_string);
     app.bindings_count = appAssignments.length;
     app.end_users_count = new Set(appAssignments.filter((a) => a.identity_type === "user").map((a) => a.identity_id)).size;
     app.client_count = db.clients.filter((c) => c.resource_server_id === app.id && c.status !== "revoked").length;
   }
+}
+
+export function toolFromDef(scopes: DemoScope[], appId: string, def: ToolDef, id: string, createdAt: string): DemoTool {
+  const scopeId = (key: string) => scopes.find((s) => s.application_id === appId && s.scope_string === key)?.id;
+  return {
+    id,
+    application_id: appId,
+    name: def.name,
+    title: def.title,
+    description: def.description,
+    scope_ids: def.scopes.map(scopeId).filter((x): x is string => Boolean(x)),
+    suggested: def.suggested ?? [],
+    is_public: Boolean(def.public),
+    inventory_source: def.source ?? "sdk_manifest",
+    created_at: createdAt,
+  };
 }
 
 /** A fresh id for a record created during the tutorial session. */

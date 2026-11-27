@@ -12,7 +12,6 @@ interface AppDef {
   url: string;
   path: string;
   state: AppState;
-  tools: number;
   createdDaysAgo: number;
   lastScanHoursAgo: number;
   scanError?: string;
@@ -28,7 +27,6 @@ export const APPS: AppDef[] = [
     url: "https://mcp-github.northwind.example",
     path: "/mcp",
     state: "ready",
-    tools: 14,
     createdDaysAgo: 128,
     lastScanHoursAgo: 3,
     scopes: [
@@ -51,7 +49,6 @@ export const APPS: AppDef[] = [
     url: "https://crm-api.northwind.example",
     path: "/v2",
     state: "ready",
-    tools: 9,
     createdDaysAgo: 104,
     lastScanHoursAgo: 6,
     scopes: [
@@ -72,7 +69,6 @@ export const APPS: AppDef[] = [
     url: "https://ledger.northwind.example",
     path: "/mcp",
     state: "ready",
-    tools: 7,
     createdDaysAgo: 76,
     lastScanHoursAgo: 11,
     accessIssue: "Release Bot was denied payouts:approve 4 times in the last 24h",
@@ -94,7 +90,6 @@ export const APPS: AppDef[] = [
     url: "https://kb.northwind.example",
     path: "/mcp",
     state: "needs_setup",
-    tools: 5,
     createdDaysAgo: 4,
     lastScanHoursAgo: 30,
     scopes: [
@@ -109,7 +104,6 @@ export const APPS: AppDef[] = [
     url: "https://jira-mcp.northwind.example",
     path: "/mcp",
     state: "scan_failed",
-    tools: 0,
     createdDaysAgo: 2,
     lastScanHoursAgo: 1,
     scanError: "Tool inventory unavailable: GET /.well-known/mcp-manifest returned 503 Service Unavailable",
@@ -260,3 +254,77 @@ export const SA_GRANTS: Array<[number, string, string, number]> = [
   [3, "crm", "support-agent", 85],
   [4, "github", "viewer", 60],
 ];
+
+interface ToolDef {
+  name: string;
+  title: string;
+  description: string;
+  /** Scopes an admin mapped; these are what the gate enforces. */
+  scopes: string[];
+  /** Scopes the SDK suggested but no admin has applied yet. */
+  suggested?: string[];
+  public?: boolean;
+  source?: "sdk_manifest" | "mcp_scan" | "manual";
+  /** Days since the tool first appeared; recent ones show up as drift. */
+  addedDaysAgo?: number;
+}
+
+export const TOOLS: Record<string, ToolDef[]> = {
+  github: [
+    { name: "get_server_info", title: "Server info", description: "Returns the server version and health. Safe to expose without a token.", scopes: [], public: true },
+    { name: "list_repositories", title: "List repositories", description: "Lists repositories the caller can see in the Northwind org.", scopes: ["repo:read"] },
+    { name: "get_file_contents", title: "Read a file", description: "Returns the contents of a file at a branch or commit.", scopes: ["repo:read"] },
+    { name: "search_code", title: "Search code", description: "Full-text search across repositories.", scopes: ["repo:read"] },
+    { name: "list_commits", title: "List commits", description: "Commit history for a branch.", scopes: ["repo:read"] },
+    { name: "create_issue", title: "Open an issue", description: "Opens a new issue with a title, body and labels.", scopes: ["issues:write"] },
+    { name: "add_issue_comment", title: "Comment on an issue", description: "Adds a comment to an existing issue.", scopes: ["issues:write"] },
+    { name: "create_branch", title: "Create a branch", description: "Creates a branch from an existing ref.", scopes: ["repo:write"] },
+    { name: "push_files", title: "Push files", description: "Commits one or more files to a branch.", scopes: ["repo:write"] },
+    { name: "create_pull_request", title: "Open a pull request", description: "Opens a pull request between two branches.", scopes: ["pull_requests:write"] },
+    { name: "request_review", title: "Request a review", description: "Requests reviewers on a pull request.", scopes: ["pull_requests:write"] },
+    { name: "merge_pull_request", title: "Merge a pull request", description: "Merges an approved pull request.", scopes: ["pull_requests:write"] },
+    { name: "run_workflow", title: "Run a workflow", description: "Dispatches a GitHub Actions workflow, including production deploys.", scopes: ["actions:run"] },
+    { name: "list_org_members", title: "List org members", description: "Lists members and their org roles.", scopes: ["admin:org"] },
+    { name: "delete_repository", title: "Delete a repository", description: "Permanently deletes a repository. Appeared in the manifest after launch and is denied until an admin maps it.", scopes: [], suggested: ["admin:org"], addedDaysAgo: 1 },
+  ],
+  crm: [
+    { name: "health_check", title: "Health check", description: "Liveness probe for the API.", scopes: [], public: true },
+    { name: "search_customers", title: "Search customers", description: "Finds accounts by name, domain or email.", scopes: ["customers:read"] },
+    { name: "get_customer", title: "Get a customer", description: "Returns an account with its contacts.", scopes: ["customers:read"] },
+    { name: "get_order_history", title: "Order history", description: "Lists a customer's orders and their status.", scopes: ["customers:read"] },
+    { name: "update_contact", title: "Update a contact", description: "Edits a contact's name, title and phone.", scopes: ["customers:write"] },
+    { name: "add_account_note", title: "Add an account note", description: "Appends a note to the account timeline.", scopes: ["customers:write"] },
+    { name: "export_customers", title: "Export customers", description: "Exports a filtered customer list as CSV.", scopes: ["customers:export"] },
+    { name: "get_customer_pii", title: "Unmasked contact details", description: "Returns unmasked email, phone and address.", scopes: ["pii:read"] },
+    { name: "erase_customer", title: "Erase a customer", description: "Fulfils a GDPR erasure request.", scopes: ["pii:read", "customers:write"] },
+  ],
+  payments: [
+    { name: "get_balance", title: "Account balance", description: "Current balance per currency.", scopes: ["ledger:read"] },
+    { name: "list_transactions", title: "List transactions", description: "Ledger entries with filters by date and counterparty.", scopes: ["ledger:read"] },
+    { name: "list_payouts", title: "List payouts", description: "Scheduled and completed vendor payouts.", scopes: ["ledger:read"] },
+    { name: "create_invoice", title: "Create an invoice", description: "Drafts an invoice for a customer.", scopes: ["invoices:create"] },
+    { name: "send_invoice", title: "Send an invoice", description: "Emails a drafted invoice to the customer.", scopes: ["invoices:create"] },
+    { name: "issue_refund", title: "Issue a refund", description: "Refunds all or part of a payment.", scopes: ["refunds:issue"] },
+    { name: "approve_payout", title: "Approve a payout", description: "Releases a scheduled payout. Requires the treasury approver role.", scopes: ["payouts:approve"] },
+  ],
+  kb: [
+    { name: "search_articles", title: "Search articles", description: "Semantic search over the internal knowledge base.", scopes: ["docs:read"] },
+    { name: "get_article", title: "Read an article", description: "Returns an article with its revision history.", scopes: ["docs:read"] },
+    { name: "list_spaces", title: "List spaces", description: "Lists knowledge-base spaces.", scopes: ["docs:read"] },
+    { name: "create_article", title: "Create an article", description: "Publishes a new article.", scopes: [], suggested: ["docs:write"], source: "sdk_manifest" },
+    { name: "update_article", title: "Edit an article", description: "Edits an existing article.", scopes: [], suggested: ["docs:write"], source: "sdk_manifest" },
+  ],
+  jira: [],
+};
+
+/** Tools the Jira server will report once its manifest endpoint recovers (the rescan scenario). */
+export const JIRA_RECOVERED_TOOLS: ToolDef[] = [
+  { name: "search_tickets", title: "Search tickets", description: "JQL search across projects.", scopes: [], suggested: ["tickets:read"] },
+  { name: "get_ticket", title: "Get a ticket", description: "Returns a ticket with comments.", scopes: [], suggested: ["tickets:read"] },
+  { name: "create_ticket", title: "Create a ticket", description: "Opens a ticket in an ops project.", scopes: [], suggested: ["tickets:write"] },
+  { name: "transition_ticket", title: "Move a ticket", description: "Changes a ticket's status.", scopes: [], suggested: ["tickets:write"] },
+  { name: "add_comment", title: "Comment on a ticket", description: "Adds a comment.", scopes: [], suggested: ["tickets:write"] },
+  { name: "page_oncall", title: "Page on-call", description: "Pages the on-call engineer for a service.", scopes: [], suggested: ["tickets:write"] },
+];
+
+export type { ToolDef };

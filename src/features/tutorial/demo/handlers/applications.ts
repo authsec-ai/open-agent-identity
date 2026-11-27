@@ -2,9 +2,15 @@ import type { ApplicationRole, AccessScopeRef } from "@/app/api/accessApi";
 import type { AccessAssignment, AgentConnection } from "@/app/api/agentIdentityApi";
 import type { WorkspaceClientItem } from "@/app/api/mcpClientsApi";
 import { badRequest, created, demoRoute, notFound, ok } from "../router";
-import { newId, recordAudit, refreshCounts, type DemoDb, type DemoRole } from "../db";
+import { newId, recordAudit, refreshCounts, type DemoDb, type DemoRole, type DemoScope } from "../db";
 
 const nowIso = () => new Date().toISOString();
+
+const PRESET_SCOPES: Record<string, Array<[string, string, DemoScope["risk_level"]]>> = {
+  read_write: [["read", "Read records", "low"], ["write", "Create and change records", "medium"]],
+  read_write_admin: [["read", "Read records", "low"], ["write", "Create and change records", "medium"], ["admin", "Delete and administer", "critical"]],
+  code_repos: [["repo:read", "Read code", "low"], ["repo:write", "Push code", "medium"], ["actions:run", "Run workflows", "high"]],
+};
 
 function scopeRef(db: DemoDb, scopeId: string): AccessScopeRef | null {
   const s = db.scopes.find((x) => x.id === scopeId);
@@ -106,6 +112,11 @@ demoRoute("POST", "/authsec/applications", ({ db, body, path }) => {
     created_at: nowIso(),
     updated_at: nowIso(),
   });
+  const preset = PRESET_SCOPES[String(body.scope_preset_id ?? "")] ?? [];
+  for (const [key, label, risk] of preset) {
+    db.scopes.push({ id: newId(db), application_id: id, scope_string: key, display_name: label, description: label, risk_level: risk, created_at: nowIso() });
+  }
+  refreshCounts(db);
   recordAudit(db, { action: "application.create", resource: "application", resourceId: id, method: "POST", path });
   return created({
     id,
@@ -187,7 +198,11 @@ demoRoute("POST", "/authsec/applications/:id/roles", ({ db, params, body, path }
   }
   refreshCounts(db);
   recordAudit(db, { action: "role.create", resource: "role", resourceId: role.id, method: "POST", path });
-  return created(roleView(db, role));
+  return created({
+    ...roleView(db, role),
+    permissions: role.scope_ids.length,
+    bindings: db.assignments.filter((a) => a.role_id === role.id && a.status === "active").length,
+  });
 });
 
 demoRoute("PUT", "/authsec/applications/:id/roles/:roleId/scope-grants", ({ db, params, body, path }) => {

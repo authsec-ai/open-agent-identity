@@ -112,7 +112,28 @@ function consoleRoles(db: DemoDb) {
 }
 
 demoRoute("GET", "/authsec/uflow/admin/roles", ({ db }) => ok(consoleRoles(db)));
-demoRoute("GET", "/authsec/uflow/admin/roles/:ws", ({ db }) => ok(consoleRoles(db)));
+// The same path serves the role list (by workspace) and one role's detail (by role id).
+demoRoute("GET", "/authsec/uflow/admin/roles/:idOrWs", ({ db, params }) => {
+  const appRole = db.roles.find((r) => r.id === params.idOrWs);
+  if (appRole) {
+    const scopes = appRole.scope_ids.map((id) => db.scopes.find((s) => s.id === id)?.scope_string ?? "").filter(Boolean);
+    const holders = db.assignments.filter((a) => a.role_id === appRole.id && a.status === "active" && a.identity_type === "user");
+    return ok({
+      id: appRole.id,
+      name: appRole.name,
+      description: appRole.description,
+      permissions: scopes,
+      granted_scopes: scopes,
+      user_ids: holders.map((h) => h.identity_id),
+      usernames: holders.map((h) => db.endUsers.find((u) => u.id === h.identity_id)?.username ?? ""),
+    });
+  }
+  const consoleRole = consoleRoles(db).find((r) => r.id === params.idOrWs);
+  if (consoleRole) {
+    return ok({ id: consoleRole.id, name: consoleRole.name, description: consoleRole.description, permissions: db.permissions.slice(0, consoleRole.permissions_count).map((p) => p.full_permission_string), user_ids: consoleRole.user_ids, usernames: consoleRole.usernames });
+  }
+  return ok(consoleRoles(db));
+});
 demoRoute("GET", "/authsec/uflow/admin/permissions", ({ db }) => ok(db.permissions));
 
 // ── Logs ─────────────────────────────────────────────────────────────────
@@ -166,6 +187,25 @@ demoRoute("POST", "/authsec/uflow/admin/sync-configs/list", ({ db, body }) => {
 });
 
 demoRoute("GET", "/authsec/exsvc/services", ({ db }) => ok({ services: db.externalServices }));
+
+// ── The operator's own MFA and voice devices (never the real ones) ──────
+demoRoute("GET", "/authsec/uflow/auth/ciba/devices", ({ db }) =>
+  ok({
+    success: true,
+    devices: [
+      { id: "demo-ciba-1", device_name: "Priya's iPhone", platform: "ios", device_model: "iPhone 15", app_version: "AuthSec 2.4.0", os_version: "iOS 18.1", is_active: true, last_used: Math.floor((db.now - 3_600_000) / 1000), created_at: Math.floor((db.now - 40 * 86_400_000) / 1000) },
+    ],
+  }),
+);
+demoRoute("DELETE", "/authsec/uflow/auth/ciba/devices/:deviceId", () => ok({ success: true, message: "Device removed (tutorial)" }));
+demoRoute("GET", "/authsec/uflow/auth/totp/devices", ({ db }) =>
+  ok({
+    success: true,
+    devices: [
+      { id: "demo-totp-1", user_id: db.admins[0]?.id ?? "", workspace_id: db.workspaceId, device_name: "1Password", device_type: "totp", last_used: Math.floor((db.now - 7_200_000) / 1000), is_active: true, is_primary: true, created_at: Math.floor((db.now - 90 * 86_400_000) / 1000), updated_at: Math.floor((db.now - 7_200_000) / 1000) },
+    ],
+  }),
+);
 
 // ── Trusted issuers and workload identity providers ─────────────────────
 demoRoute("GET", "/authsec/trusted-issuers", ({ db }) => ok({ items: db.trustedIssuers }));
