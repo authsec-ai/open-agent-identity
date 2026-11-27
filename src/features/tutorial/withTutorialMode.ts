@@ -1,6 +1,6 @@
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError, FetchBaseQueryMeta } from "@reduxjs/toolkit/query/react";
 import { dispatchDemoRequest, normalizePath, type DemoMethod } from "./demo/router";
-import { getDemoDb } from "./demo/state";
+import { getDemoDb, notifyDemoChange } from "./demo/state";
 import "./demo/handlers";
 
 type Fetcher = BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError, object, FetchBaseQueryMeta>;
@@ -32,6 +32,7 @@ export function withTutorialMode(baseQuery: Fetcher): Fetcher {
       console.warn(`[tutorial] no demo handler for ${method} ${url}`);
     }
     await new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
+    if (method !== "GET" && result.status < 400) notifyDemoChange();
     if (result.status >= 400) {
       return { error: { status: result.status, data: result.data } as FetchBaseQueryError };
     }

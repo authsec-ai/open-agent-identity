@@ -26,6 +26,7 @@ import { deviceApi } from "./api/deviceApi"; // Device management (TOTP/CIBA)
 // Import regular slices
 import uiSlice, { setTutorialLevel, setTutorialMode } from "./slices/uiSlice";
 import { resetDemoDb } from "../features/tutorial/demo/state";
+import { walk } from "../features/tutorial/walkthroughs/model";
 import { readStoredTutorialLevel, readStoredTutorialMode } from "../utils/tutorialModeStorage";
 
 // Import auth slices from new location
@@ -82,6 +83,7 @@ tutorialListener.startListening({
     (previous as { ui: { tutorialMode: boolean } }).ui.tutorialMode,
   effect: (_action, api) => {
     if ((api.getState() as { ui: { tutorialMode: boolean } }).ui.tutorialMode) resetDemoDb();
+    walk.reset();
     api.dispatch(baseApi.util.resetApiState());
   },
 });

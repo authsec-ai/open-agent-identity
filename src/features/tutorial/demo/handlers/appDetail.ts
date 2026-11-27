@@ -304,6 +304,10 @@ demoRoute("POST", "/authsec/applications/:id/rescan", ({ db, params, path }) =>
     let added: DemoTool[] = [];
     if (app.state === "scan_failed" && app.name === "Jira Ops MCP") {
       added = JIRA_RECOVERED_TOOLS.map((def) => toolFromDef(db.scopes, app.id, def, newId(db), nowIso()));
+      // The server answers again, so the protection check that failed with it now passes.
+      app.last_validation_status = "passed";
+      app.last_validation_error = undefined;
+      app.last_validated_at = nowIso();
     } else if (app.state === "pending_scan" && db.tools.every((t) => t.application_id !== app.id)) {
       added = [
         { name: "ping", title: "Ping", description: "Health check.", scopes: [], public: true },
