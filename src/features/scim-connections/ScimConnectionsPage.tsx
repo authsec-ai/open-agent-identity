@@ -34,6 +34,7 @@ import {
   useRevokeScimConnectionMutation,
 } from "@/app/api/scimConnectionsApi";
 import config from "@/config";
+import { DOCS } from "@/lib/docs";
 import { scopedStorageKey } from "@/utils/scopedStorageKey";
 
 const infoKey = () => scopedStorageKey("scim_connections_info_dismissed_v1");
@@ -352,7 +353,7 @@ export default function ScimConnectionsPage() {
             </div>
             <a
               className="btn btn-secondary"
-              href="https://docs.authsec.dev/scim"
+              href={DOCS.sso}
               target="_blank"
               rel="noreferrer"
               style={{ height: 32, padding: "0 12px", marginTop: "var(--space-4)" }}

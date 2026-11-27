@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Copy, ExternalLink, Check, Code } from "lucide-react";
 import type { RoleFormData } from "../types";
 import { toast } from "@/lib/toast";
+import { DOCS } from "@/lib/docs";
 
 interface SDKSnippetProps {
   roleData: RoleFormData;
@@ -47,7 +48,7 @@ ${grantsStr}
 
   const handleDocsClick = () => {
     // Open docs in new tab
-    window.open("https://docs.authsec.dev/getting-started", "_blank");
+    window.open(DOCS.rolesAndAccess, "_blank", "noopener,noreferrer");
   };
 
   return (

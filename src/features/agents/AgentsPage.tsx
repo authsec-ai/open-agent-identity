@@ -14,7 +14,7 @@
 
 import { useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Ban, Bot, ClipboardCopy, ExternalLink, Plus } from "lucide-react";
+import { Ban, Bot, ClipboardCopy, Plus } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import {
@@ -40,9 +40,7 @@ import { ConsoleFilterBar, ConsoleRowActions, EntityCell } from "@/components/co
 import { TableCard } from "@/theme/components/cards";
 import { ConsolePage } from "@/components/console/ConsolePage";
 import { AgentWizard } from "@/features/identity-wizards/AgentWizard";
-import { IDENTITY_DOCS } from "@/features/identity-wizards/docs";
 
-const DOCS_URL = IDENTITY_DOCS.agent.guide;
 
 const STATUS_BADGE: Record<string, { label: string; variant: "default" | "outline" | "secondary" }> =
   {
@@ -225,18 +223,10 @@ export default function AgentsPage() {
       title="Agents"
       description="AI agents that act on behalf of a logged-in user. Each is a confidential client that signs a user in, then reaches MCP servers via cross-app delegation (ID-JAG). A new agent shows as not connected until its first call to a server."
       actions={
-        <>
-          <Button variant="outline" asChild>
-            <a href={DOCS_URL} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-1.5 size-3.5" />
-              Docs
-            </a>
-          </Button>
-          <Button onClick={() => setRegisterOpen(true)} className="text-white">
-            <Plus className="mr-1.5 size-3.5" />
-            Register agent
-          </Button>
-        </>
+        <Button onClick={() => setRegisterOpen(true)} className="text-white">
+          <Plus className="mr-1.5 size-3.5" />
+          Register agent
+        </Button>
       }
     >
       <ConsoleFilterBar

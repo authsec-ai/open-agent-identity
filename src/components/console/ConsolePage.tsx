@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PageExplain } from "@/features/tutorial/explain/Explain";
+import { PageDocsLink } from "./PageDocsLink";
 
 /**
  * `ConsolePage` — the single canonical shell for every workspace console page.
@@ -61,9 +62,10 @@ export function ConsolePage({
             </h1>
             {description ? <p className="sh-desc">{description}</p> : null}
           </div>
-          {actions ? (
-            <div className="flex shrink-0 items-center gap-2">{actions}</div>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            <PageDocsLink />
+            {actions}
+          </div>
         </header>
         <div className={variant === "object" ? "space-y-3" : "space-y-4"}>{children}</div>
       </div>

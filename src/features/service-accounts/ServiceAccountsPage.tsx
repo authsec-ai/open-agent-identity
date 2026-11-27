@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ClipboardCopy, ExternalLink, KeyRound, Pencil, Plus, RotateCcw, Server, Trash2 } from "lucide-react";
+import { ClipboardCopy, KeyRound, Pencil, Plus, RotateCcw, Server, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import {
@@ -50,9 +50,7 @@ import {
 import { RightDrawer } from "@/components/primitives/RightDrawer";
 import { formatRoleName } from "@/utils/roleName";
 import { ServiceAccountWizard } from "@/features/identity-wizards/ServiceAccountWizard";
-import { CONNECT_OVERVIEW_DOCS } from "@/features/identity-wizards/docs";
 
-const DOCS_URL = CONNECT_OVERVIEW_DOCS;
 
 // ── Auth-method helpers ───────────────────────────────────────────────────────
 
@@ -578,18 +576,10 @@ export default function ServiceAccountsPage() {
       title="Service Accounts"
       description="Machine principals for server-to-server (M2M) calls. Each service account holds a credential — client secret, private-key JWT, or Kubernetes SPIFFE SVID — and is granted access to specific MCP servers independently of any user session."
       actions={
-        <>
-          <Button variant="outline" asChild>
-            <a href={DOCS_URL} target="_blank" rel="noreferrer">
-              <ExternalLink className="mr-1.5 size-3.5" />
-              Docs
-            </a>
-          </Button>
-          <Button onClick={() => setCreateOpen(true)} className="text-white">
-            <Plus className="mr-1.5 size-3.5" />
-            Create service account
-          </Button>
-        </>
+        <Button onClick={() => setCreateOpen(true)} className="text-white">
+          <Plus className="mr-1.5 size-3.5" />
+          Create service account
+        </Button>
       }
     >
       <MetricStrip
