@@ -31,6 +31,8 @@ import { TableCard } from "@/theme/components/cards";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
+import type { TermKey } from "@/features/tutorial/terms/terms";
 
 import {
   useApproveWorkspaceClientMutation,
@@ -126,6 +128,12 @@ const REGISTRATION_LABELS: Record<string, string> = {
   dcr: "DCR",
   prereg: "Pre-reg",
   cimd: "CIMD",
+};
+
+const CLIENT_STATUS_TERMS: Record<string, TermKey | undefined> = {
+  approved: "clientStatus.approved",
+  pending_approval: "clientStatus.pending_approval",
+  revoked: "clientStatus.revoked",
 };
 
 function statusTone(
@@ -848,7 +856,12 @@ export function ClientsTable({
       },
       {
         id: "kind",
-        header: "Kind",
+        header: () => (
+          <TermTooltip term="column.kind" underline>
+            Kind
+          </TermTooltip>
+        ),
+        label: "Kind",
         priority: 1,
         approxWidth: 130,
         cell: ({ row }) => {
@@ -856,16 +869,18 @@ export function ClientsTable({
           const style = KIND_STYLES[c.client_kind];
           const Icon = style.icon;
           return (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
-                style.chip,
-                style.text,
-              )}
-            >
-              <Icon className="size-3" aria-hidden />
-              {KIND_LABELS[c.client_kind]}
-            </span>
+            <TermTooltip term={`kind.${c.client_kind}`}>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
+                  style.chip,
+                  style.text,
+                )}
+              >
+                <Icon className="size-3" aria-hidden />
+                {KIND_LABELS[c.client_kind]}
+              </span>
+            </TermTooltip>
           );
         },
       },
@@ -884,13 +899,18 @@ export function ClientsTable({
       },
       {
         id: "registration",
-        header: "Registration",
+        header: () => (
+          <TermTooltip term="column.registration" underline>
+            Registration
+          </TermTooltip>
+        ),
+        label: "Registration",
         priority: 3,
         approxWidth: 120,
         cell: ({ row }) => {
           const type = row.original.registration_type;
           const style = REGISTRATION_STYLES[type] ?? REGISTRATION_STYLES.dcr;
-          return (
+          const chip = (
             <span
               className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
@@ -902,17 +922,23 @@ export function ClientsTable({
               {REGISTRATION_LABELS[type] ?? type}
             </span>
           );
+          return type in REGISTRATION_LABELS ? <TermTooltip term={`registration.${type as "dcr" | "prereg" | "cimd"}`}>{chip}</TermTooltip> : chip;
         },
       },
       {
         id: "status",
-        header: "Status",
+        header: () => (
+          <TermTooltip term="column.clientStatus" underline>
+            Status
+          </TermTooltip>
+        ),
+        label: "Status",
         priority: 1,
         approxWidth: 140,
         cell: ({ row }) => {
           const c = row.original;
           const tone = statusTone(c.status, c.sync_status);
-          return (
+          const chip = (
             <span
               className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
@@ -924,6 +950,8 @@ export function ClientsTable({
               {tone.label}
             </span>
           );
+          const term = CLIENT_STATUS_TERMS[c.status];
+          return term && c.sync_status === "active" ? <TermTooltip term={term}>{chip}</TermTooltip> : chip;
         },
       },
       {

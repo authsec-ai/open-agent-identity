@@ -49,6 +49,7 @@ import {
 } from "@/components/console/detail";
 import { RightDrawer } from "@/components/primitives/RightDrawer";
 import { formatRoleName } from "@/utils/roleName";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
 
 const DOCS_URL = "https://docs.authsec.dev/getting-started";
 
@@ -832,7 +833,12 @@ export default function ServiceAccountsPage() {
       },
       {
         id: "auth_method",
-        header: "Auth method",
+        header: () => (
+          <TermTooltip term="column.authMethod" underline>
+            Auth method
+          </TermTooltip>
+        ),
+        label: "Auth method",
         priority: 1,
         approxWidth: 140,
         cell: ({ row }) => {

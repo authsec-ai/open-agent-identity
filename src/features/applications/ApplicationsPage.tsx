@@ -30,6 +30,9 @@ import {
 } from "@/components/console/iam-console";
 import { TableCard } from "@/theme/components/cards";
 
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
+import type { TermKey } from "@/features/tutorial/terms/terms";
+
 import { DeleteApplicationDialog } from "./components/DeleteApplicationDialog";
 import { computeReadiness, isLaunched } from "./lib/computeReadiness";
 import type { Application } from "./types";
@@ -79,13 +82,21 @@ function readinessCopy(row: AppRow): string {
   return r.launch.status;
 }
 
-function riskOf(row: AppRow): { tone: ConsoleTone; label: string } {
+function readinessTerm(copy: string): TermKey {
+  if (copy === "Launched") return "readiness.launched";
+  if (copy === "Ready to launch") return "readiness.ready";
+  if (copy === "Blocked") return "readiness.blocked";
+  if (copy === "In setup") return "readiness.setup";
+  return "readiness.review";
+}
+
+function riskOf(row: AppRow): { tone: ConsoleTone; label: string; term: TermKey } {
   const r = row.readiness;
   if (r.launch.state === "err" || r.tools.state === "err" || row.application.state === "scan_failed")
-    return { tone: "danger", label: "High" };
+    return { tone: "danger", label: "High", term: "risk.high" };
   if (r.tools.state === "warn" || r.launch.state === "warn" || r.protection.state === "warn")
-    return { tone: "warning", label: "Needs review" };
-  return { tone: "muted", label: "Low" };
+    return { tone: "warning", label: "Needs review", term: "readiness.review" };
+  return { tone: "muted", label: "Low", term: "risk.low" };
 }
 
 function lastSignal(application: Application): string {
@@ -151,31 +162,46 @@ export default function ApplicationsPage() {
       },
       {
         id: "readiness",
-        header: "Readiness",
+        header: () => (
+          <TermTooltip term="column.readiness" underline>
+            Readiness
+          </TermTooltip>
+        ),
+        label: "Readiness",
         priority: 1,
         approxWidth: 160,
         cell: ({ row }) => {
           const tone = toneFromState(row.original.readiness.launch.state);
+          const copy = readinessCopy(row.original);
           return (
-            <span className={`badge badge--${tone}`}>
-              <span className="bdot" />
-              {readinessCopy(row.original)}
-            </span>
+            <TermTooltip term={readinessTerm(copy)}>
+              <span className={`badge badge--${tone}`}>
+                <span className="bdot" />
+                {copy}
+              </span>
+            </TermTooltip>
           );
         },
       },
       {
         id: "risk",
-        header: "Risk",
+        header: () => (
+          <TermTooltip term="column.risk" underline>
+            Risk
+          </TermTooltip>
+        ),
+        label: "Risk",
         priority: 2,
         approxWidth: 130,
         cell: ({ row }) => {
           const risk = riskOf(row.original);
           return (
-            <span className={`badge badge--${risk.tone}`}>
-              <span className="bdot" />
-              {risk.label}
-            </span>
+            <TermTooltip term={risk.term}>
+              <span className={`badge badge--${risk.tone}`}>
+                <span className="bdot" />
+                {risk.label}
+              </span>
+            </TermTooltip>
           );
         },
       },

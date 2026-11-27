@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { useApplicationContext } from "./useApplicationContext";
 import CrossAppDebugger from "./components/CrossAppDebugger";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
 
 const labelRole = (roleName: string) => {
   const raw = roleName.includes(":") ? roleName.split(":").pop() || roleName : roleName;
@@ -441,7 +442,12 @@ function ConnectionsSection({ rsId }: { rsId: string }) {
       },
       {
         id: "authority",
-        header: "Authority",
+        header: () => (
+          <TermTooltip term="column.authority" underline>
+            Authority
+          </TermTooltip>
+        ),
+        label: "Authority",
         priority: 1,
         approxWidth: 200,
         cell: ({ row }) => {
@@ -461,7 +467,12 @@ function ConnectionsSection({ rsId }: { rsId: string }) {
       },
       {
         id: "granted_through",
-        header: "Granted through",
+        header: () => (
+          <TermTooltip term="column.grantedThrough" underline>
+            Granted through
+          </TermTooltip>
+        ),
+        label: "Granted through",
         priority: 2,
         approxWidth: 260,
         cell: ({ row }) => {

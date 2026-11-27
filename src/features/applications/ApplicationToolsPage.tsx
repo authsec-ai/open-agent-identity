@@ -46,6 +46,7 @@ import type {
   ScopeMapEntry,
 } from "@/app/api/types/scopeMatrix";
 import { cn } from "@/lib/utils";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
 import { TableCard } from "@/theme/components/cards";
 
 import { useApplicationContext } from "./useApplicationContext";
@@ -408,35 +409,61 @@ export default function ApplicationToolsPage() {
       },
       {
         id: "decision",
-        header: "Runtime access",
+        header: () => (
+          <TermTooltip term="column.runtimeAccess" underline>
+            Runtime access
+          </TermTooltip>
+        ),
+        label: "Runtime access",
         priority: 1,
         approxWidth: 150,
         cell: ({ row }) => {
           const decision = classifyTool(row.original);
-          if (decision === "public") return <StatusBadge tone="info">public</StatusBadge>;
-          if (decision === "mapped") return <StatusBadge tone="success">role-gated</StatusBadge>;
-          return <StatusBadge tone="warning">denied</StatusBadge>;
+          if (decision === "public")
+            return (
+              <TermTooltip term="access.public">
+                <StatusBadge tone="info">public</StatusBadge>
+              </TermTooltip>
+            );
+          if (decision === "mapped")
+            return (
+              <TermTooltip term="access.gated">
+                <StatusBadge tone="success">role-gated</StatusBadge>
+              </TermTooltip>
+            );
+          return (
+            <TermTooltip term="access.denied">
+              <StatusBadge tone="warning">denied</StatusBadge>
+            </TermTooltip>
+          );
         },
       },
       {
         id: "risk",
-        header: "Risk",
+        header: () => (
+          <TermTooltip term="column.risk" underline>
+            Risk
+          </TermTooltip>
+        ),
+        label: "Risk",
         priority: 2,
         approxWidth: 120,
         cell: ({ row }) => {
           const risk = effectiveRisk(row.original);
           const tone = RISK_TONE[risk];
           return (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
-                tone.chip,
-                tone.text,
-              )}
-            >
-              <span className="size-1 rounded-full bg-current" aria-hidden />
-              {risk}
-            </span>
+            <TermTooltip term={`risk.${risk}`}>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase",
+                  tone.chip,
+                  tone.text,
+                )}
+              >
+                <span className="size-1 rounded-full bg-current" aria-hidden />
+                {risk}
+              </span>
+            </TermTooltip>
           );
         },
       },

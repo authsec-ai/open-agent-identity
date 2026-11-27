@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/popover";
 import { TableCard } from "@/theme/components/cards";
 import { useApplicationContext } from "./useApplicationContext";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
+import { riskTerm } from "@/features/tutorial/terms/terms";
 
 const RISK_OPTIONS: Array<{ value: RiskLevel; label: string }> = [
   { value: "low", label: "Low risk" },
@@ -158,13 +160,20 @@ export default function ApplicationScopesPage() {
       },
       {
         id: "risk",
-        header: "Risk",
+        header: () => (
+          <TermTooltip term="column.risk" underline>
+            Risk
+          </TermTooltip>
+        ),
+        label: "Risk",
         priority: 1,
         approxWidth: 130,
         cell: ({ row }) => (
-          <Badge variant={riskVariant(row.original.risk_level)}>
-            {row.original.risk_level}
-          </Badge>
+          <TermTooltip term={riskTerm(row.original.risk_level)}>
+            <Badge variant={riskVariant(row.original.risk_level)}>
+              {row.original.risk_level}
+            </Badge>
+          </TermTooltip>
         ),
       },
       {

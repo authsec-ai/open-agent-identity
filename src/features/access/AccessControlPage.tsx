@@ -67,6 +67,8 @@ import {
 } from "@/app/api/accessApi";
 
 import AssignRoleWizard from "./AssignRoleWizard";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
+import { riskTerm } from "@/features/tutorial/terms/terms";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface AuthSecRole {
@@ -541,14 +543,21 @@ function ScopesTab() {
       },
       {
         id: "risk",
-        header: "Risk",
+        header: () => (
+          <TermTooltip term="column.risk" underline>
+            Risk
+          </TermTooltip>
+        ),
+        label: "Risk",
         priority: 2,
         approxWidth: 120,
         cell: ({ row }) => (
-          <span className={`badge ${riskClass(row.original.risk_level)}`}>
-            <span className="bdot" />
-            {cap(row.original.risk_level)}
-          </span>
+          <TermTooltip term={riskTerm(row.original.risk_level)}>
+            <span className={`badge ${riskClass(row.original.risk_level)}`}>
+              <span className="bdot" />
+              {cap(row.original.risk_level)}
+            </span>
+          </TermTooltip>
         ),
       },
       {

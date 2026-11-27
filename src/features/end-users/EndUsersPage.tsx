@@ -46,6 +46,7 @@ import {
 import { toast } from "@/lib/toast";
 import { resolveWorkspaceId } from "@/utils/workspace";
 import { cn } from "@/lib/utils";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -142,10 +143,12 @@ function statusMeta(status: string) {
 function StatusPill({ status }: { status: EndUserStatus | "invited" }) {
   const m = statusMeta(status);
   return (
-    <span className={cn("status", m.cls)}>
-      <span className="dot" />
-      {m.label}
-    </span>
+    <TermTooltip term={status === "active" ? "userStatus.active" : status === "suspended" ? "userStatus.suspended" : undefined}>
+      <span className={cn("status", m.cls)}>
+        <span className="dot" />
+        {m.label}
+      </span>
+    </TermTooltip>
   );
 }
 

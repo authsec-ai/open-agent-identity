@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { M2MLog } from "../../../../types/entities";
 import type { PaginationMetadata } from "../../../../app/api/logsApi";
+import { TermTooltip } from "@/features/tutorial/terms/TermTooltip";
 
 interface M2MLogsViewProps {
   logs: M2MLog[];
@@ -219,8 +220,12 @@ export function M2MLogsView({
                           </div>
                           {/* inline effect badges */}
                           <div className="pl-2 flex flex-wrap items-center gap-1.5 mt-1">
-                            <EffectBadge value={log.pdpEffect} label={`PDP: ${log.pdpEffect}`} />
-                            <EffectBadge value={log.gateEffect} label={`Gate: ${log.gateEffect}`} />
+                            <TermTooltip term="decision.pdp">
+                              <EffectBadge value={log.pdpEffect} label={`PDP: ${log.pdpEffect}`} />
+                            </TermTooltip>
+                            <TermTooltip term="decision.gate">
+                              <EffectBadge value={log.gateEffect} label={`Gate: ${log.gateEffect}`} />
+                            </TermTooltip>
                             {log.scopesGranted && (
                               <span className="text-[10px] text-slate-500 dark:text-zinc-500 font-mono">
                                 scopes={log.scopesGranted}
